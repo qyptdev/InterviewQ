@@ -94,13 +94,13 @@ uvicorn app.main:app --reload --port 8000
 # 拉取最新镜像
 docker pull qypdev/interviewq:latest
 
-# 启动服务
+# 启动服务（优先使用拉取的镜像，无需本地构建）
 docker compose up -d
 ```
 
 ### 方式二：本地构建镜像
 ```bash
-# 自行构建镜像
+# 强制本地构建镜像
 docker compose build
 
 # 启动服务

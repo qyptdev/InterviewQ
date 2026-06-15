@@ -3,6 +3,7 @@ version: "3.9"
 services:
   interviewq:
     build: .
+    image: qypdev/interviewq:latest
     ports:
       - "8000:8000"
     volumes:
