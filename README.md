@@ -16,6 +16,12 @@ AI 驱动的智能面试题库生成与模拟面试平台。支持基于简历/�
 - **🔍 混合 RAG**：BM25 + RAPTOR 树 + 向量检索三路召回，确保题目准确性
 - **🐳 一键部署**：Docker Compose 一行命令启动
 
+## 🎯 界面演示
+
+| 首页概览 | 智能出题 | 模拟面试 |
+|---------|---------|---------|
+| ![首页界面](docs/assets/screenshots/homepage_0.png) | ![智能出题界面](docs/assets/screenshots/qa-gen.png) | ![模拟面试初始化](docs/assets/screenshots/interview-init.png) |
+
 ## 技术栈
 
 | 层级 | 技术选型 |
@@ -83,7 +89,21 @@ uvicorn app.main:app --reload --port 8000
 
 ## Docker
 
+### 方式一：直接拉取官方镜像（推荐）
 ```bash
+# 拉取最新镜像
+docker pull qypdev/interviewq:latest
+
+# 启动服务
+docker compose up -d
+```
+
+### 方式二：本地构建镜像
+```bash
+# 自行构建镜像
+docker compose build
+
+# 启动服务
 docker compose up -d
 ```
 

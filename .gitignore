@@ -41,6 +41,7 @@ Thumbs.db
 
 # === Dev Artifacts ===
 *.png
+!docs/assets/screenshots/*.png
 *.log
 =*
 

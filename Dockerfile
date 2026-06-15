@@ -20,8 +20,9 @@ COPY scripts/build_css.sh ./scripts/build_css.sh
 
 # Build Tailwind CSS
 RUN apt-get update && apt-get install -y --no-install-recommends curl \
-    && curl -sL -o /usr/local/bin/tailwindcss https://github.com/tailwindlabs/tailwindcss/releases/latest/download/tailwindcss-linux-x64 \
-    && chmod +x /usr/local/bin/tailwindcss \
+    && curl -sL -o /app/tailwindcss https://github.com/tailwindlabs/tailwindcss/releases/latest/download/tailwindcss-linux-x64 \
+    && chmod +x /app/tailwindcss \
+    && chmod +x ./scripts/build_css.sh \
     && ./scripts/build_css.sh \
     && rm -rf /var/lib/apt/lists/*
 
