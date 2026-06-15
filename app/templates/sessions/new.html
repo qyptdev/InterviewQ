@@ -1,0 +1,383 @@
+{% extends "base.html" %}
+
+{% block title %}InterviewQ - 新建面试会话{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <!-- Breadcrumb -->
+    <nav class="flex mb-6" aria-label="Breadcrumb">
+        <ol class="inline-flex items-center space-x-1 md:space-x-3">
+            <li class="inline-flex items-center">
+                <a href="/" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white inline-flex items-center text-sm font-medium transition-colors">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                    首页
+                </a>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path></svg>
+                    <a href="/sessions" class="ml-1 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white md:ml-2 transition-colors">模拟面试</a>
+                </div>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path></svg>
+                    <span class="ml-1 text-sm font-medium text-gray-700 dark:text-white md:ml-2">新建会话</span>
+                </div>
+            </li>
+        </ol>
+    </nav>
+
+    <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
+        <svg class="w-7 h-7 mr-3 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+        </svg>
+        新建面试会话
+    </h1>
+
+    <form id="newSessionForm" class="space-y-6 bg-white dark:bg-slate-800 shadow-sm rounded-xl border border-gray-200 dark:border-slate-700 p-6">
+        <div>
+            <label for="title" class="block text-sm font-medium text-gray-700 dark:text-gray-300">会话标题 *</label>
+            <input type="text" id="title" name="title" required
+                class="mt-1 block w-full rounded-lg border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm focus:border-green-500 focus:ring-green-500"
+                placeholder="例如：Python 后端工程师面试">
+        </div>
+
+        <div>
+            <label for="job_role" class="block text-sm font-medium text-gray-700 dark:text-gray-300">目标岗位</label>
+            <input type="text" id="job_role" name="job_role"
+                class="mt-1 block w-full rounded-lg border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm focus:border-green-500 focus:ring-green-500"
+                placeholder="例如：Python 后端工程师">
+        </div>
+
+        <!-- Question Bank Selection -->
+        <div>
+            <label for="bank_select" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">题目来源</label>
+            <select id="bank_select" onchange="onBankSelect()" class="block w-full rounded-lg border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm focus:border-green-500 focus:ring-green-500">
+                <option value="">不使用题库（从全部题目中选择）</option>
+            </select>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">选择题库后，将只显示该题库中的题目</p>
+        </div>
+
+        <!-- Filters Panel -->
+        <div id="filters-panel" class="border border-gray-200 dark:border-slate-600 rounded-lg p-4 bg-gray-50 dark:bg-slate-700/50">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300">筛选与随机抽取</h3>
+                <span id="question-count-badge" class="px-2 py-1 text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 rounded">已选 0 / 共 0 道</span>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+                <div>
+                    <label for="difficulty-filter" class="block text-xs text-gray-600 dark:text-gray-400 mb-1">难度</label>
+                    <select id="difficulty-filter" onchange="applyFilters()" class="w-full text-sm rounded border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white">
+                        <option value="">全部</option>
+                        <option value="easy">简单</option>
+                        <option value="medium">中等</option>
+                        <option value="hard">困难</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="category-filter" class="block text-xs text-gray-600 dark:text-gray-400 mb-1">分类</label>
+                    <select id="category-filter" onchange="applyFilters()" class="w-full text-sm rounded border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white">
+                        <option value="">全部</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="random-count" class="block text-xs text-gray-600 dark:text-gray-400 mb-1">随机抽取</label>
+                    <div class="flex gap-1">
+                        <input type="number" id="random-count" min="1" value="5" class="flex-1 text-sm rounded border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white">
+                        <button type="button" onclick="randomPick()" class="px-3 py-1 text-xs font-medium text-white bg-purple-600 hover:bg-purple-700 rounded">抽取</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">选择题目（可选）</label>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">从题库中选择题目，或稍后手动添加</p>
+            <div class="flex items-center gap-2 mt-2">
+                <button type="button" onclick="selectAll()" class="px-3 py-1 text-xs font-medium text-green-700 bg-green-100 dark:bg-green-900/30 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-900/50 rounded transition-colors">全选</button>
+                <button type="button" onclick="invertSelection()" class="px-3 py-1 text-xs font-medium text-purple-700 bg-purple-100 dark:bg-purple-900/30 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-900/50 rounded transition-colors">反选</button>
+                <button type="button" onclick="cancelAll()" class="px-3 py-1 text-xs font-medium text-gray-700 bg-gray-100 dark:bg-gray-900/30 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-900/50 rounded transition-colors">取消全选</button>
+            </div>
+            <div id="questionList" class="max-h-60 overflow-y-auto border border-gray-300 dark:border-slate-600 rounded-lg p-2 space-y-2 bg-gray-50 dark:bg-slate-700/50">
+                <p class="text-gray-400 dark:text-gray-500 text-sm">加载中...</p>
+            </div>
+        </div>
+
+        <div class="flex justify-end space-x-3 pt-2">
+            <a href="/sessions" class="px-4 py-2 border border-gray-300 dark:border-slate-600 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors">
+                取消
+            </a>
+            <button type="submit" class="px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 shadow-lg shadow-green-500/25 transition-all">
+                创建会话
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+let selectedQuestions = [];
+let allQuestions = [];
+let filteredQuestions = [];
+let currentBank = null;
+let lastAutoTitle = '';
+
+// Load question banks
+async function loadBanks() {
+    try {
+        const response = await fetch('/api/banks?page_size=100');
+        const data = await response.json();
+        const bankSelect = document.getElementById('bank_select');
+
+        if (data.banks && data.banks.length > 0) {
+            data.banks.forEach(bank => {
+                const option = document.createElement('option');
+                option.value = bank.id;
+                option.textContent = `${bank.name} (${bank.question_count}道题)`;
+                bankSelect.appendChild(option);
+            });
+        }
+    } catch (err) {
+        console.error('Failed to load banks:', err);
+    }
+}
+
+// Bank selection changed
+async function onBankSelect() {
+    const bankId = document.getElementById('bank_select').value;
+    currentBank = bankId ? parseInt(bankId) : null;
+
+    if (currentBank) {
+        // Load bank questions (no limit)
+        try {
+            const response = await fetch(`/api/banks/${currentBank}/questions?page_size=1000`);
+            const data = await response.json();
+            allQuestions = data.questions || [];
+        } catch (err) {
+            console.error('Failed to load bank questions:', err);
+            allQuestions = [];
+        }
+    } else {
+        // Load all questions
+        await loadAllQuestions();
+    }
+
+    // Update category filter
+    updateCategoryFilter();
+    applyFilters();
+    generateTitle();
+}
+
+// Load all questions
+async function loadAllQuestions() {
+    try {
+        const response = await fetch('/api/questions?page_size=1000');
+        const data = await response.json();
+        allQuestions = data.questions || [];
+    } catch (err) {
+        console.error('Failed to load questions:', err);
+        allQuestions = [];
+    }
+}
+
+// Update category filter based on loaded questions
+function updateCategoryFilter() {
+    const categories = [...new Set(allQuestions.map(q => q.category))];
+    const categoryFilter = document.getElementById('category-filter');
+    categoryFilter.innerHTML = '<option value="">全部</option>';
+
+    categories.forEach(cat => {
+        const option = document.createElement('option');
+        option.value = cat;
+        option.textContent = cat;
+        categoryFilter.appendChild(option);
+    });
+}
+
+// Apply filters
+function applyFilters() {
+    const difficulty = document.getElementById('difficulty-filter').value;
+    const category = document.getElementById('category-filter').value;
+
+    filteredQuestions = allQuestions.filter(q => {
+        if (difficulty && q.difficulty !== difficulty) return false;
+        if (category && q.category !== category) return false;
+        return true;
+    });
+
+    renderQuestions(filteredQuestions);
+    updateQuestionCount();
+}
+
+// Random pick questions
+function randomPick() {
+    const count = parseInt(document.getElementById('random-count').value) || 5;
+
+    if (filteredQuestions.length === 0) {
+        alert('没有可选题目');
+        return;
+    }
+
+    if (count > filteredQuestions.length) {
+        alert(`题库仅有 ${filteredQuestions.length} 道题，已全部选择`);
+        selectedQuestions = filteredQuestions.map(q => q.id);
+    } else {
+        // Shuffle and pick
+        const shuffled = [...filteredQuestions].sort(() => Math.random() - 0.5);
+        selectedQuestions = shuffled.slice(0, count).map(q => q.id);
+    }
+
+    // Update checkboxes
+    document.querySelectorAll('.question-checkbox').forEach(cb => {
+        cb.checked = selectedQuestions.includes(parseInt(cb.value));
+    });
+
+    updateQuestionCount();
+
+    // Warn if too many
+    if (selectedQuestions.length > 50) {
+        alert('题目较多，面试时间可能较长');
+    }
+}
+
+// Render questions
+function renderQuestions(questions) {
+    const container = document.getElementById('questionList');
+
+    if (questions.length === 0) {
+        container.innerHTML = '<p class="text-gray-400 dark:text-gray-500 text-sm">暂无题目</p>';
+        return;
+    }
+
+    container.innerHTML = questions.map(q => `
+        <label class="flex items-start p-2 hover:bg-gray-100 dark:hover:bg-slate-600/50 rounded-lg cursor-pointer transition-colors">
+            <input type="checkbox" value="${q.id}" class="mt-1 mr-3 question-checkbox"
+                   ${selectedQuestions.includes(q.id) ? 'checked' : ''}
+                   onchange="updateSelection()">
+            <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-gray-900 dark:text-white">${q.title.substring(0, 80)}${q.title.length > 80 ? '...' : ''}</p>
+                <div class="flex items-center gap-2 mt-1">
+                    <span class="text-xs text-gray-500 dark:text-gray-400">${q.category}</span>
+                    <span class="text-xs px-1.5 py-0.5 rounded ${
+                        q.difficulty === 'easy' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' :
+                        q.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300' :
+                        'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                    }">${q.difficulty === 'easy' ? '简单' : q.difficulty === 'medium' ? '中等' : '困难'}</span>
+                </div>
+            </div>
+        </label>
+    `).join('');
+}
+
+// Update selection
+function updateSelection() {
+    selectedQuestions = Array.from(document.querySelectorAll('.question-checkbox:checked')).map(cb => parseInt(cb.value));
+    updateQuestionCount();
+
+    // Warn if too many
+    if (selectedQuestions.length > 50) {
+        document.getElementById('question-count-badge').classList.add('bg-yellow-100', 'text-yellow-800', 'dark:bg-yellow-900/30', 'dark:text-yellow-300');
+        document.getElementById('question-count-badge').classList.remove('bg-green-100', 'text-green-800', 'dark:bg-green-900/30', 'dark:text-green-300');
+    } else {
+        document.getElementById('question-count-badge').classList.remove('bg-yellow-100', 'text-yellow-800', 'dark:bg-yellow-900/30', 'dark:text-yellow-300');
+        document.getElementById('question-count-badge').classList.add('bg-green-100', 'text-green-800', 'dark:bg-green-900/30', 'dark:text-green-300');
+    }
+}
+
+// Update question count badge
+function updateQuestionCount() {
+    document.getElementById('question-count-badge').textContent = `已选 ${selectedQuestions.length} / 共 ${filteredQuestions.length} 道`;
+}
+
+function selectAll() {
+    document.querySelectorAll('.question-checkbox').forEach(cb => {
+        cb.checked = true;
+    });
+    updateSelection();
+}
+
+function invertSelection() {
+    document.querySelectorAll('.question-checkbox').forEach(cb => {
+        cb.checked = !cb.checked;
+    });
+    updateSelection();
+}
+
+function cancelAll() {
+    document.querySelectorAll('.question-checkbox').forEach(cb => {
+        cb.checked = false;
+    });
+    updateSelection();
+}
+
+function generateTitle() {
+    const titleInput = document.getElementById('title');
+    const jobRole = document.getElementById('job_role').value.trim();
+    const bankSelect = document.getElementById('bank_select');
+    const bankName = bankSelect.selectedIndex > 0 ? bankSelect.options[bankSelect.selectedIndex].text.split(' (')[0] : '';
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+
+    let parts = [];
+    if (bankName) parts.push(bankName);
+    if (jobRole) parts.push(jobRole);
+    parts.push(`面试 ${dateStr}`);
+
+    const newTitle = parts.join(' - ');
+
+    // Only auto-set if title is empty or was previously auto-generated
+    if (!titleInput.value.trim() || titleInput.value.trim() === lastAutoTitle) {
+        titleInput.value = newTitle;
+        lastAutoTitle = newTitle;
+    }
+}
+
+document.getElementById('newSessionForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData);
+
+    try {
+        const response = await fetch('/api/sessions', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+            const session = await response.json();
+
+            if (selectedQuestions.length > 0) {
+                await fetch(`/api/sessions/${session.id}/start`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(selectedQuestions)
+                });
+            }
+
+            // Redirect based on preferred mode
+            const mode = localStorage.getItem('interview_mode') || 'card';
+            const redirectUrl = mode === 'card'
+                ? `/sessions/${session.id}/practice`
+                : `/sessions/${session.id}`;
+            window.location.href = redirectUrl;
+        } else {
+            const error = await response.json();
+            alert('创建失败: ' + (error.detail || '未知错误'));
+        }
+    } catch (err) {
+        alert('创建失败: ' + err.message);
+    }
+});
+
+// Initialize
+(async () => {
+    await loadBanks();
+    await loadAllQuestions();
+    updateCategoryFilter();
+    applyFilters();
+    generateTitle();
+    document.getElementById('job_role').addEventListener('blur', generateTitle);
+})();
+</script>
+{% endblock %}

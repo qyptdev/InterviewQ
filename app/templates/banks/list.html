@@ -1,0 +1,661 @@
+{% extends "base.html" %}
+
+{% block title %}InterviewQ - 题库{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Breadcrumb -->
+    {{ breadcrumb([]) }}
+
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
+                <svg class="w-8 h-8 mr-3 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                </svg>
+                题库管理
+            </h1>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">管理你的面试题库和题目</p>
+        </div>
+        <div class="flex gap-2">
+            {% if active_tab == 'banks' %}
+            <button id="manage-toggle-btn" onclick="toggleManageMode()" class="inline-flex items-center px-4 py-2.5 border border-gray-300 dark:border-slate-600 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 transition-all">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                </svg>
+                <span id="manage-btn-text">管理</span>
+            </button>
+            {% else %}
+            <button id="question-manage-btn" onclick="toggleQuestionManageMode()" class="inline-flex items-center px-4 py-2.5 border border-gray-300 dark:border-slate-600 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 transition-all">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                </svg>
+                <span>管理</span>
+            </button>
+            {% endif %}
+            <button onclick="showCreateModal()" class="inline-flex items-center px-4 py-2.5 border border-transparent text-sm font-medium rounded-lg text-white bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 shadow-lg shadow-purple-500/25 transition-all">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                </svg>
+                创建题库
+            </button>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="border-b border-gray-200 dark:border-slate-700">
+        <nav class="-mb-px flex space-x-8">
+            <a href="/banks?tab=banks"
+               class="whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors {% if active_tab == 'banks' %}border-purple-500 text-purple-600 dark:text-purple-400{% else %}border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:border-gray-300 dark:hover:border-slate-600{% endif %}">
+                <svg class="w-5 h-5 inline-block mr-1.5 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                </svg>
+                我的题库
+                <span class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
+                    {{ total_banks }}
+                </span>
+            </a>
+            <a href="/banks?tab=all"
+               class="whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors {% if active_tab == 'all' %}border-purple-500 text-purple-600 dark:text-purple-400{% else %}border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:border-gray-300 dark:hover:border-slate-600{% endif %}">
+                <svg class="w-5 h-5 inline-block mr-1.5 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                </svg>
+                全部题目
+                <span class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                    {{ total_questions }}
+                </span>
+            </a>
+        </nav>
+    </div>
+
+    <!-- Tab Content -->
+    {% if active_tab == 'banks' %}
+    <!-- Search Bar -->
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 p-4">
+        <div class="relative">
+            <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+            </svg>
+            <input type="text" id="bankSearch" placeholder="搜索题库..."
+                class="pl-10 block w-full rounded-lg border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:focus:ring-purple-400 text-sm"
+                oninput="filterBanks()">
+        </div>
+    </div>
+
+    <!-- Batch Operations Toolbar (hidden by default) -->
+    <div id="batch-toolbar" class="hidden bg-blue-50 dark:bg-blue-900/20 rounded-xl shadow-sm border border-blue-200 dark:border-blue-800/30 p-4">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <div class="flex items-center">
+                <span class="text-sm font-medium text-blue-900 dark:text-blue-300">
+                    已选 <span id="selected-count" class="font-bold">0</span> 个题库
+                </span>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <button onclick="selectAll()" class="px-3 py-1.5 text-sm font-medium text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded-lg transition-colors">
+                    全选
+                </button>
+                <button onclick="clearSelection()" class="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
+                    取消
+                </button>
+                <button onclick="batchDelete()" class="px-3 py-1.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors">
+                    批量删除
+                </button>
+                <button onclick="batchExport('json')" class="px-3 py-1.5 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors">
+                    导出JSON
+                </button>
+                <button onclick="batchExport('csv')" class="px-3 py-1.5 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors">
+                    导出CSV
+                </button>
+                <button onclick="batchClone()" class="px-3 py-1.5 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors">
+                    批量克隆
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Banks Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for bank in banks %}
+        <div class="bank-card bg-white dark:bg-slate-800 rounded-xl shadow-sm hover:shadow-md border border-gray-200 dark:border-slate-700 overflow-hidden transition-all duration-200 hover:-translate-y-1"
+             data-bank-id="{{ bank.id }}"
+             data-name="{{ bank.name | lower }}"
+             data-question-count="{{ bank.question_count }}">
+            <div class="p-6">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="flex items-center flex-1 min-w-0">
+                        <input type="checkbox" class="bank-checkbox hidden mr-3 w-4 h-4 text-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500 dark:focus:ring-purple-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600" data-bank-id="{{ bank.id }}" onchange="updateSelection()">
+                        <div class="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-lg flex items-center justify-center shadow-lg shadow-purple-500/25 flex-shrink-0">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                            </svg>
+                        </div>
+                        <div class="ml-3 flex-1 min-w-0">
+                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white truncate">{{ bank.name }}</h3>
+                        </div>
+                    </div>
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 flex-shrink-0 ml-2">
+                        {{ bank.question_count }} 题
+                    </span>
+                </div>
+                {% if bank.description %}
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-4 line-clamp-2">{{ bank.description }}</p>
+                {% endif %}
+                <div class="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-slate-700">
+                    <span class="text-xs text-gray-400 dark:text-gray-500">
+                        <svg class="w-4 h-4 inline-block mr-1 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        {{ bank.created_at[:10] if bank.created_at else '' }}
+                    </span>
+                    <div class="flex space-x-2">
+                        <a href="/banks/{{ bank.id }}" class="inline-flex items-center px-3 py-1.5 text-sm font-medium text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors">
+                            查看
+                            <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                            </svg>
+                        </a>
+                        <button onclick='showEditModal({{ bank.id }}, {{ bank.name|tojson }}, {{ bank.description|tojson }})' class="inline-flex items-center px-2 py-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors" title="编辑">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                            </svg>
+                        </button>
+                        <button onclick='showCloneModal({{ bank.id }}, {{ bank.name|tojson }}, {{ bank.description|tojson }})' class="inline-flex items-center px-2 py-1.5 text-sm font-medium text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors" title="复制">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                            </svg>
+                        </button>
+                        <button onclick="deleteBank({{ bank.id }})" class="inline-flex items-center px-2 py-1.5 text-sm font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="删除">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-span-full bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 p-12 text-center">
+            <div class="w-16 h-16 mx-auto mb-4 bg-gray-100 dark:bg-slate-700 rounded-full flex items-center justify-center">
+                <svg class="w-8 h-8 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                </svg>
+            </div>
+            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">暂无题库</h3>
+            <p class="text-gray-500 dark:text-gray-400 mb-6">创建你的第一个题库来组织面试题目</p>
+            <button onclick="showCreateModal()" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                </svg>
+                创建题库
+            </button>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% else %}
+    <!-- All Questions Table -->
+    {% include '_question_table.html' %}
+    {% endif %}
+</div>
+
+<!-- Create/Edit Modal -->
+<div id="createModal" class="fixed inset-0 bg-gray-900/50 dark:bg-black/50 overflow-y-auto h-full w-full hidden z-50">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-xl rounded-xl bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700">
+        <div class="mt-3">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                    <span id="modalTitle">创建题库</span>
+                </h3>
+                <button onclick="hideCreateModal()" class="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <form id="createForm" class="space-y-4">
+                <input type="hidden" id="editBankId" value="">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">题库名称 *</label>
+                    <input type="text" name="name" id="bankName" required
+                        class="mt-1 block w-full rounded-lg border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:focus:ring-purple-400"
+                        placeholder="例如：Python 基础题库">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">描述</label>
+                    <textarea name="description" id="bankDescription" rows="3"
+                        class="mt-1 block w-full rounded-lg border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:focus:ring-purple-400"
+                        placeholder="题库描述（可选）"></textarea>
+                </div>
+                <div class="flex justify-end space-x-3 pt-2">
+                    <button type="button" onclick="hideCreateModal()" class="px-4 py-2 border border-gray-300 dark:border-slate-600 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors">
+                        取消
+                    </button>
+                    <button type="submit" class="px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 shadow-lg shadow-purple-500/25 transition-all">
+                        <span id="submitButtonText">创建</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Clone Modal -->
+<div id="cloneModal" class="fixed inset-0 bg-gray-900/50 dark:bg-black/50 overflow-y-auto h-full w-full hidden z-50">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-xl rounded-xl bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700">
+        <div class="mt-3">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                    </svg>
+                    复制题库
+                </h3>
+                <button onclick="hideCloneModal()" class="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <form id="cloneForm" class="space-y-4">
+                <input type="hidden" id="cloneBankId" value="">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">新题库名称 *</label>
+                    <input type="text" name="name" id="cloneBankName" required
+                        class="mt-1 block w-full rounded-lg border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:focus:ring-purple-400"
+                        placeholder="新题库名称">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">描述</label>
+                    <textarea name="description" id="cloneBankDescription" rows="3"
+                        class="mt-1 block w-full rounded-lg border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:focus:ring-purple-400"
+                        placeholder="题库描述（可选）"></textarea>
+                </div>
+                <div class="flex justify-end space-x-3 pt-2">
+                    <button type="button" onclick="hideCloneModal()" class="px-4 py-2 border border-gray-300 dark:border-slate-600 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors">
+                        取消
+                    </button>
+                    <button type="submit" class="px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 shadow-lg shadow-green-500/25 transition-all">
+                        复制
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+let isManageMode = false;
+let selectedBanks = new Set();
+let lastClickedCheckbox = null;
+
+// Toggle manage mode
+function toggleManageMode() {
+    isManageMode = !isManageMode;
+    const checkboxes = document.querySelectorAll('.bank-checkbox');
+    const toolbar = document.getElementById('batch-toolbar');
+    const btnText = document.getElementById('manage-btn-text');
+
+    if (isManageMode) {
+        // Enter manage mode
+        checkboxes.forEach(cb => cb.classList.remove('hidden'));
+        btnText.textContent = '取消管理';
+        // Initialize Shift-click handlers
+        initializeShiftClickHandlers();
+    } else {
+        // Exit manage mode
+        checkboxes.forEach(cb => {
+            cb.classList.add('hidden');
+            cb.checked = false;
+        });
+        selectedBanks.clear();
+        toolbar.classList.add('hidden');
+        btnText.textContent = '管理';
+        lastClickedCheckbox = null;
+    }
+}
+
+// Get visible selected banks (fix for search/filter bug)
+function getVisibleSelectedBanks() {
+    const visible = [];
+    document.querySelectorAll('.bank-card:not(.hidden) .bank-checkbox:checked').forEach(cb => {
+        const card = cb.closest('.bank-card');
+        visible.push({
+            id: parseInt(cb.dataset.bankId),
+            name: card.dataset.name,
+            question_count: parseInt(card.dataset.questionCount)
+        });
+    });
+    return visible;
+}
+
+// Update selection state
+function updateSelection() {
+    selectedBanks.clear();
+    document.querySelectorAll('.bank-checkbox:checked').forEach(cb => {
+        selectedBanks.add(parseInt(cb.dataset.bankId));
+    });
+
+    // Update UI with visible/total count
+    const visibleSelected = getVisibleSelectedBanks();
+    const totalCount = selectedBanks.size;
+    const visibleCount = visibleSelected.length;
+
+    const countElement = document.getElementById('selected-count');
+    if (totalCount > visibleCount) {
+        countElement.textContent = `${totalCount}（当前可见 ${visibleCount}）`;
+    } else {
+        countElement.textContent = totalCount;
+    }
+
+    const toolbar = document.getElementById('batch-toolbar');
+    if (totalCount > 0) {
+        toolbar.classList.remove('hidden');
+    } else {
+        toolbar.classList.add('hidden');
+    }
+}
+
+// Initialize Shift-click handlers for range selection
+function initializeShiftClickHandlers() {
+    const checkboxes = document.querySelectorAll('.bank-checkbox');
+
+    checkboxes.forEach((checkbox, index) => {
+        checkbox.addEventListener('click', function(event) {
+            if (event.shiftKey && lastClickedCheckbox !== null) {
+                // Get all visible checkboxes
+                const allCheckboxes = Array.from(checkboxes);
+                const visibleCheckboxes = allCheckboxes.filter(cb =>
+                    !cb.closest('.bank-card').classList.contains('hidden')
+                );
+
+                // Find indices in visible list
+                const currentVisibleIndex = visibleCheckboxes.indexOf(checkbox);
+                const lastVisibleIndex = visibleCheckboxes.indexOf(lastClickedCheckbox);
+
+                if (currentVisibleIndex !== -1 && lastVisibleIndex !== -1) {
+                    // Select range
+                    const start = Math.min(currentVisibleIndex, lastVisibleIndex);
+                    const end = Math.max(currentVisibleIndex, lastVisibleIndex);
+                    const targetState = checkbox.checked;
+
+                    for (let i = start; i <= end; i++) {
+                        visibleCheckboxes[i].checked = targetState;
+                    }
+
+                    updateSelection();
+                }
+            }
+
+            lastClickedCheckbox = checkbox;
+        });
+    });
+}
+
+// Select all visible banks
+function selectAll() {
+    document.querySelectorAll('.bank-card:not(.hidden) .bank-checkbox').forEach(cb => {
+        cb.checked = true;
+    });
+    updateSelection();
+}
+
+// Clear selection
+function clearSelection() {
+    document.querySelectorAll('.bank-checkbox').forEach(cb => {
+        cb.checked = false;
+    });
+    selectedBanks.clear();
+    document.getElementById('batch-toolbar').classList.add('hidden');
+}
+
+// Batch delete banks
+async function batchDelete() {
+    // Only operate on visible selected banks
+    const visibleSelected = getVisibleSelectedBanks();
+    const visibleCount = visibleSelected.length;
+
+    if (visibleCount === 0) {
+        alert('当前没有可见的选中题库');
+        return;
+    }
+
+    if (!confirm(`确定删除 ${visibleCount} 个题库吗？此操作不可恢复。`)) return;
+
+    try {
+        const response = await fetch('/api/banks/batch/delete', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({bank_ids: visibleSelected.map(b => b.id)})
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || '删除失败');
+        }
+
+        const result = await response.json();
+        alert(result.message);
+        location.reload();
+    } catch (err) {
+        alert('删除失败: ' + err.message);
+        console.error('Batch delete error:', err);
+    }
+}
+
+// Batch export banks
+async function batchExport(format) {
+    // Only operate on visible selected banks
+    const visibleSelected = getVisibleSelectedBanks();
+    const visibleCount = visibleSelected.length;
+
+    if (visibleCount === 0) {
+        alert('当前没有可见的选中题库');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/banks/batch/export', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({bank_ids: visibleSelected.map(b => b.id), format})
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || '导出失败');
+        }
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `banks_export_${new Date().toISOString().slice(0,10)}.${format}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+    } catch (err) {
+        alert('导出失败: ' + err.message);
+        console.error('Batch export error:', err);
+    }
+}
+
+// Batch clone banks
+async function batchClone() {
+    // Only operate on visible selected banks
+    const visibleSelected = getVisibleSelectedBanks();
+    const visibleCount = visibleSelected.length;
+
+    if (visibleCount === 0) {
+        alert('当前没有可见的选中题库');
+        return;
+    }
+
+    if (!confirm(`确定克隆 ${visibleCount} 个题库吗？`)) return;
+
+    try {
+        const response = await fetch('/api/banks/batch/clone', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({bank_ids: visibleSelected.map(b => b.id)})
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || '克隆失败');
+        }
+
+        const result = await response.json();
+        alert(result.message);
+        location.reload();
+    } catch (err) {
+        alert('克隆失败: ' + err.message);
+        console.error('Batch clone error:', err);
+    }
+}
+
+function showCreateModal() {
+    document.getElementById('modalTitle').textContent = '创建题库';
+    document.getElementById('submitButtonText').textContent = '创建';
+    document.getElementById('editBankId').value = '';
+    document.getElementById('bankName').value = '';
+    document.getElementById('bankDescription').value = '';
+    document.getElementById('createModal').classList.remove('hidden');
+}
+
+function showEditModal(id, name, description) {
+    document.getElementById('modalTitle').textContent = '编辑题库';
+    document.getElementById('submitButtonText').textContent = '保存';
+    document.getElementById('editBankId').value = id;
+    document.getElementById('bankName').value = name;
+    document.getElementById('bankDescription').value = description;
+    document.getElementById('createModal').classList.remove('hidden');
+}
+
+function hideCreateModal() {
+    document.getElementById('createModal').classList.add('hidden');
+}
+
+function showCloneModal(id, name, description) {
+    document.getElementById('cloneBankId').value = id;
+    document.getElementById('cloneBankName').value = name + ' - 副本';
+    document.getElementById('cloneBankDescription').value = description;
+    document.getElementById('cloneModal').classList.remove('hidden');
+}
+
+function hideCloneModal() {
+    document.getElementById('cloneModal').classList.add('hidden');
+}
+
+document.getElementById('createForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData);
+    const editId = document.getElementById('editBankId').value;
+
+    try {
+        let response;
+        if (editId) {
+            // Edit mode
+            response = await fetch(`/api/banks/${editId}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+        } else {
+            // Create mode
+            response = await fetch('/api/banks', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+        }
+
+        if (response.ok) {
+            hideCreateModal();
+            window.location.reload();
+        } else {
+            const error = await response.json();
+            alert((editId ? '更新' : '创建') + '失败: ' + (error.detail || '未知错误'));
+        }
+    } catch (err) {
+        alert((editId ? '更新' : '创建') + '失败: ' + err.message);
+    }
+});
+
+document.getElementById('cloneForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData);
+    const cloneId = document.getElementById('cloneBankId').value;
+
+    try {
+        const response = await fetch(`/api/banks/${cloneId}/clone`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            hideCloneModal();
+            window.location.href = `/banks/${result.id}`;
+        } else {
+            const error = await response.json();
+            alert('复制失败: ' + (error.detail || '未知错误'));
+        }
+    } catch (err) {
+        alert('复制失败: ' + err.message);
+    }
+});
+
+async function deleteBank(id) {
+    if (!confirm('确定要删除这个题库吗？删除后题目不会被删除。')) return;
+
+    try {
+        const response = await fetch(`/api/banks/${id}`, { method: 'DELETE' });
+        if (response.ok) {
+            window.location.reload();
+        } else {
+            alert('删除失败');
+        }
+    } catch (err) {
+        alert('删除失败: ' + err.message);
+    }
+}
+
+// Filter banks by search
+function filterBanks() {
+    const search = document.getElementById('bankSearch').value.toLowerCase();
+    const cards = document.querySelectorAll('.bank-card');
+
+    cards.forEach(card => {
+        const name = card.dataset.name || '';
+        const match = !search || name.includes(search);
+
+        if (match) {
+            card.classList.remove('hidden');
+        } else {
+            card.classList.add('hidden');
+        }
+    });
+
+    // Update selection count if in manage mode
+    if (isManageMode) {
+        updateSelection();
+    }
+}
+
+// ESC key support
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        hideCreateModal();
+        hideCloneModal();
+    }
+});
+</script>
+{% endblock %}

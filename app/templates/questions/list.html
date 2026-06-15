@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+
+{% block title %}InterviewQ - 题库管理{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center">
+        <h1 class="text-2xl font-bold text-gray-900">📝 题库管理</h1>
+        <div class="flex space-x-3">
+            <a href="/questions/new" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                ➕ 添加题目
+            </a>
+            <button onclick="showGenerateModal()" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700">
+                🤖 AI 生成
+            </button>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white shadow rounded-lg p-4">
+        <form method="GET" action="/questions" class="flex flex-wrap gap-4">
+            <div class="flex-1 min-w-[200px]">
+                <input type="text" name="search" placeholder="搜索题目..." value="{{ request.query_params.get('search', '') }}"
+                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+            </div>
+            <div>
+                <select name="category" class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    <option value="">所有分类</option>
+                    <option value="技术" {% if request.query_params.get('category') == '技术' %}selected{% endif %}>技术</option>
+                    <option value="行为" {% if request.query_params.get('category') == '行为' %}selected{% endif %}>行为</option>
+                    <option value="系统设计" {% if request.query_params.get('category') == '系统设计' %}selected{% endif %}>系统设计</option>
+                    <option value="HR" {% if request.query_params.get('category') == 'HR' %}selected{% endif %}>HR</option>
+                </select>
+            </div>
+            <div>
+                <select name="difficulty" class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    <option value="">所有难度</option>
+                    <option value="easy" {% if request.query_params.get('difficulty') == 'easy' %}selected{% endif %}>简单</option>
+                    <option value="medium" {% if request.query_params.get('difficulty') == 'medium' %}selected{% endif %}>中等</option>
+                    <option value="hard" {% if request.query_params.get('difficulty') == 'hard' %}selected{% endif %}>困难</option>
+                </select>
+            </div>
+            <button type="submit" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                🔍 筛选
+            </button>
+        </form>
+    </div>
+
+    <!-- Questions List -->
+    <div class="bg-white shadow rounded-lg overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">题目</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">分类</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">难度</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">标签</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for question in questions %}
+                <tr>
+                    <td class="px-6 py-4">
+                        <a href="/questions/{{ question.id }}" class="text-blue-600 hover:text-blue-900 font-medium">
+                            {{ question.title[:100] }}{% if question.title|length > 100 %}...{% endif %}
+                        </a>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                            {{ question.category }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        {% if question.difficulty == 'easy' %}
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">简单</span>
+                        {% elif question.difficulty == 'medium' %}
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">中等</span>
+                        {% else %}
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">困难</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 text-sm text-gray-500">
+                        {{ question.tags }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <a href="/questions/{{ question.id }}/edit" class="text-indigo-600 hover:text-indigo-900 mr-3">编辑</a>
+                        <button onclick="deleteQuestion({{ question.id }})" class="text-red-600 hover:text-red-900">删除</button>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="px-6 py-4 text-center text-gray-500">
+                        暂无题目，点击"添加题目"或"AI 生成"开始创建
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Generate Modal -->
+<div id="generateModal" class="fixed inset-0 bg-gray-600/50 overflow-y-auto h-full w-full hidden">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">🤖 AI 生成题目</h3>
+            <form id="generateForm" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">分类</label>
+                    <select name="category" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <option value="技术">技术</option>
+                        <option value="行为">行为</option>
+                        <option value="系统设计">系统设计</option>
+                        <option value="HR">HR</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">难度</label>
+                    <select name="difficulty" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <option value="easy">简单</option>
+                        <option value="medium" selected>中等</option>
+                        <option value="hard">困难</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">主题</label>
+                    <input type="text" name="topic" placeholder="例如：Python 异步编程" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">数量</label>
+                    <input type="number" name="count" value="5" min="1" max="20" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button type="button" onclick="hideGenerateModal()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400">
+                        取消
+                    </button>
+                    <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
+                        生成
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showGenerateModal() {
+    document.getElementById('generateModal').classList.remove('hidden');
+}
+
+function hideGenerateModal() {
+    document.getElementById('generateModal').classList.add('hidden');
+}
+
+document.getElementById('generateForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData);
+    data.count = parseInt(data.count);
+
+    try {
+        const response = await fetch('/api/questions/generate', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+            hideGenerateModal();
+            window.location.reload();
+        } else {
+            const error = await response.json();
+            alert('生成失败: ' + (error.detail || '未知错误'));
+        }
+    } catch (err) {
+        alert('生成失败: ' + err.message);
+    }
+});
+
+async function deleteQuestion(id) {
+    if (!confirm('确定要删除这道题目吗？')) return;
+
+    try {
+        const response = await fetch(`/api/questions/${id}`, { method: 'DELETE' });
+        if (response.ok) {
+            window.location.reload();
+        } else {
+            alert('删除失败');
+        }
+    } catch (err) {
+        alert('删除失败: ' + err.message);
+    }
+}
+</script>
+{% endblock %}

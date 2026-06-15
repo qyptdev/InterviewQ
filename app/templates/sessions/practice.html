@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block title %}InterviewQ - 面试练习{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="/static/css/practice.css">
+<link rel="stylesheet" href="/static/css/animations.css">
+<script src="/static/js/draft-manager.js"></script>
+<script src="/static/js/network-manager.js"></script>
+<script src="/static/js/timer-manager.js"></script>
+<script src="/static/js/sse-stream.js"></script>
+<script src="/static/js/practice-manager.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="practice-container">
+    <!-- Left Sidebar Navigation -->
+    <aside class="practice-sidebar">
+        <div class="sidebar-header">
+            <h2 class="sidebar-title">{{ session.title }}</h2>
+            {% if session.job_role %}
+            <p class="sidebar-subtitle">{{ session.job_role }}</p>
+            {% endif %}
+            <div class="progress-info">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="sidebar-progress" style="width: 0%"></div>
+                </div>
+                <p class="progress-text" id="sidebar-progress-text">0 / {{ session.total_questions }}</p>
+            </div>
+        </div>
+
+        <nav class="question-nav" id="question-nav">
+            {% for iq in questions %}
+                {% if iq.is_followup %}
+                    {% if loop.first or not questions[loop.index0 - 1].is_followup %}
+                    <div class="followup-group">
+                    {% endif %}
+                    <button
+                        class="nav-item followup-nav-item {% if iq.user_answer %}answered{% elif iq.status == 'skipped' %}skipped{% else %}unanswered{% endif %}"
+                        data-question-id="{{ iq.id }}"
+                        data-order="{{ iq.order_index }}"
+                        data-is-followup="true"
+                        onclick="practiceManager.navigateTo({{ iq.id }})">
+                        <span class="nav-number">↳ {{ loop.index }}</span>
+                        <span class="nav-status">
+                            {% if iq.user_answer %}✓{% elif iq.status == 'skipped' %}⊗{% else %}•{% endif %}
+                        </span>
+                    </button>
+                    {% if loop.last or not questions[loop.index].is_followup %}
+                    </div>
+                    {% endif %}
+                {% else %}
+                    <button
+                        class="nav-item {% if loop.index0 == 0 %}active{% endif %} {% if iq.user_answer %}answered{% elif iq.status == 'skipped' %}skipped{% else %}unanswered{% endif %}"
+                        data-question-id="{{ iq.id }}"
+                        data-order="{{ iq.order_index }}"
+                        onclick="practiceManager.navigateTo({{ iq.id }})">
+                        <span class="nav-number">{{ loop.index }}</span>
+                        <span class="nav-status">
+                            {% if iq.user_answer %}✓{% elif iq.status == 'skipped' %}⊗{% else %}•{% endif %}
+                        </span>
+                    </button>
+                {% endif %}
+            {% endfor %}
+        </nav>
+
+        {% if session.status == 'in_progress' %}
+        <div class="sidebar-actions">
+            <button onclick="practiceManager.completeSession()" class="btn-complete">结束面试</button>
+        </div>
+        {% endif %}
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="practice-main">
+        <div class="cards-container" id="cards-container">
+            {% for iq in questions %}
+            <div class="question-card {% if loop.index0 == 0 %}active{% endif %}"
+                 id="card-{{ iq.id }}"
+                 data-question-id="{{ iq.id }}"
+                 data-order="{{ iq.order_index }}">
+
+                <!-- Question Header -->
+                <div class="card-header">
+                    <div class="card-header-left">
+                        <span class="question-number">问题 #{{ loop.index }}</span>
+                        {% if iq.score is not none %}
+                        <span class="score-badge">{{ iq.score }}分</span>
+                        {% endif %}
+                        {% if not iq.user_answer and iq.status != 'skipped' %}
+                        <span class="timer-badge" id="timer-badge-{{ iq.id }}" style="display: none;">⏱ 00:00</span>
+                        {% endif %}
+                        {% if iq.time_spent and iq.time_spent > 0 and (iq.user_answer or iq.status == 'skipped') %}
+                        <span class="timer-badge timer-badge-done">⏱ {{ iq.time_spent | format_time }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="card-header-right">
+                        {% if iq.is_bookmarked %}
+                        <button class="btn-icon active" data-bookmarked="true" onclick="practiceManager.toggleBookmark({{ iq.id }})" title="取消收藏">
+                            <svg class="icon" fill="currentColor" viewBox="0 0 24 24"><path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
+                        </button>
+                        {% else %}
+                        <button class="btn-icon" data-bookmarked="false" onclick="practiceManager.toggleBookmark({{ iq.id }})" title="收藏">
+                            <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Question Text -->
+                <div class="card-section">
+                    <h3 class="section-title">题目</h3>
+                    <p class="question-text">{{ iq.question_text }}</p>
+                </div>
+
+                <!-- Answer Section -->
+                {% if iq.user_answer %}
+                <div class="card-section">
+                    <div class="section-header">
+                        <h3 class="section-title">我的答案</h3>
+                        <button class="btn-edit" onclick="practiceManager.editAnswer({{ iq.id }})">
+                            <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                            编辑
+                        </button>
+                    </div>
+                    <p class="answer-text" id="answer-{{ iq.id }}">{{ iq.user_answer }}</p>
+                    {% if iq.edit_count and iq.edit_count > 0 %}
+                    <p class="edit-info">📝 已修改 {{ iq.edit_count }} 次
+                        {% if iq.previous_score and iq.score %}
+                        | {{ iq.previous_score }}→{{ iq.score }}
+                        {% endif %}
+                    </p>
+                    {% endif %}
+                    {% if iq.time_spent and iq.time_spent > 0 %}
+                    <p class="time-info">⏱️ 用时 {{ iq.time_spent | format_time }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Feedback Section -->
+                {% if iq.ai_feedback %}
+                <div class="card-section feedback-section">
+                    <h3 class="section-title">AI 反馈</h3>
+                    <p class="feedback-text">{{ iq.ai_feedback }}</p>
+                </div>
+                {% endif %}
+                {% else %}
+                <!-- Answer Input -->
+                <div class="card-section">
+                    <h3 class="section-title">我的答案</h3>
+                    <textarea
+                        class="answer-input"
+                        id="input-{{ iq.id }}"
+                        placeholder="请输入您的答案..."
+                        rows="6"
+                        {% if session.status != 'in_progress' %}disabled{% endif %}></textarea>
+                    <div class="input-actions">
+                        <button class="btn-submit" onclick="practiceManager.submitAnswer({{ iq.id }})" {% if session.status != 'in_progress' %}disabled{% endif %}>提交答案</button>
+                        <button class="btn-skip" onclick="practiceManager.skipQuestion({{ iq.id }})" {% if session.status != 'in_progress' %}disabled{% endif %}>跳过</button>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </main>
+</div>
+
+<script>
+const practiceManager = new PracticeManager({
+    sessionId: {{ session.id }},
+    totalQuestions: {{ session.total_questions }},
+    questions: {{ questions | tojson }}
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    practiceManager.init();
+});
+</script>
+{% endblock %}

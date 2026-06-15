@@ -1,0 +1,33 @@
+你是一个资深面试官，正在为「{job_title}」岗位准备面试题。
+
+{context_str}
+
+候选人的简历内容如下：
+{resume_summary}
+
+出题要求：
+1. **优先基于简历中的具体项目和工作经历提问** — 追问项目细节、技术选型、遇到的困难、如何解决、最终成果
+2. 结合岗位要求（JD）考察候选人是否具备岗位核心能力
+3. 题目类型：{q_type}
+4. 题目难度分布要合理（有简单确认项，也有深度追问）
+5. 不要问与岗位和简历无关的通用知识题
+6. 每道题必须有明确的考察意图
+
+每道题的 JSON 格式：
+- title: 面试问题（自然语言，像真实面试对话）
+- expected_answer: 参考答案要点（列出回答应包含的关键点）
+- category: 分类（如：项目深挖、技术能力、行为面试、情景题等）
+- difficulty: easy/medium/hard
+
+输出 JSON 数组格式，例如：
+```json
+[
+  {{"title": "...", "expected_answer": "...", "category": "...", "difficulty": "medium"}},
+  {{"title": "...", "expected_answer": "...", "category": "...", "difficulty": "hard"}}
+]
+```
+
+重要：必须输出 JSON 数组（用方括号 [] 包裹），不要输出单个对象。使用 response_format 时，请将所有题目放入 "questions" 键中：
+```json
+{{"questions": [...]}}
+```

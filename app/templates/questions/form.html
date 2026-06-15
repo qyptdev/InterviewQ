@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}InterviewQ - {{ '编辑题目' if question else '添加题目' }}{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <!-- Breadcrumb -->
+    <nav class="flex mb-6" aria-label="Breadcrumb">
+        <ol class="inline-flex items-center space-x-1 md:space-x-3">
+            <li class="inline-flex items-center">
+                <a href="/" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white inline-flex items-center text-sm font-medium transition-colors">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                    首页
+                </a>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path></svg>
+                    <a href="/banks?tab=all" class="ml-1 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white md:ml-2 transition-colors">题库</a>
+                </div>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path></svg>
+                    <span class="ml-1 text-sm font-medium text-gray-700 dark:text-white md:ml-2">{{ '编辑题目' if question else '添加题目' }}</span>
+                </div>
+            </li>
+        </ol>
+    </nav>
+
+    <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
+        <svg class="w-7 h-7 mr-3 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+        </svg>
+        {{ '编辑题目' if question else '添加题目' }}
+    </h1>
+
+    <form method="POST" action="{{ '/api/questions/' ~ question.id if question else '/api/questions' }}" class="space-y-6 bg-white dark:bg-slate-800 shadow-sm rounded-xl border border-gray-200 dark:border-slate-700 p-6">
+        <div>
+            <label for="title" class="block text-sm font-medium text-gray-700 dark:text-gray-300">题目标题 *</label>
+            <textarea id="title" name="title" rows="3" required
+                class="mt-1 block w-full rounded-lg border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                placeholder="请输入面试题目">{{ question.title if question else '' }}</textarea>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label for="category" class="block text-sm font-medium text-gray-700 dark:text-gray-300">分类</label>
+                <select id="category" name="category" class="mt-1 block w-full rounded-lg border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    <option value="技术" {% if question and question.category == '技术' %}selected{% endif %}>技术</option>
+                    <option value="行为" {% if question and question.category == '行为' %}selected{% endif %}>行为</option>
+                    <option value="系统设计" {% if question and question.category == '系统设计' %}selected{% endif %}>系统设计</option>
+                    <option value="HR" {% if question and question.category == 'HR' %}selected{% endif %}>HR</option>
+                </select>
+            </div>
+            <div>
+                <label for="difficulty" class="block text-sm font-medium text-gray-700 dark:text-gray-300">难度</label>
+                <select id="difficulty" name="difficulty" class="mt-1 block w-full rounded-lg border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    <option value="easy" {% if question and question.difficulty == 'easy' %}selected{% endif %}>简单</option>
+                    <option value="medium" {% if question and question.difficulty == 'medium' %}selected{% endif %}>中等</option>
+                    <option value="hard" {% if question and question.difficulty == 'hard' %}selected{% endif %}>困难</option>
+                </select>
+            </div>
+        </div>
+
+        <div>
+            <label for="tags" class="block text-sm font-medium text-gray-700 dark:text-gray-300">标签</label>
+            <input type="text" id="tags" name="tags" value="{{ question.tags if question else '' }}"
+                class="mt-1 block w-full rounded-lg border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                placeholder="用逗号分隔，例如：Python,异步,协程">
+        </div>
+
+        <div>
+            <label for="expected_answer" class="block text-sm font-medium text-gray-700 dark:text-gray-300">参考答案</label>
+            <textarea id="expected_answer" name="expected_answer" rows="6"
+                class="mt-1 block w-full rounded-lg border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                placeholder="请输入参考答案或要点">{{ question.expected_answer if question else '' }}</textarea>
+        </div>
+
+        <div class="flex justify-end space-x-3 pt-2">
+            <a href="/banks?tab=all" class="px-4 py-2 border border-gray-300 dark:border-slate-600 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors">
+                取消
+            </a>
+            <button type="submit" class="px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-500/25 transition-all">
+                {{ '保存修改' if question else '创建题目' }}
+            </button>
+        </div>
+    </form>
+</div>
+
+{% block scripts %}
+<script>
+document.querySelector('form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData);
+
+    const isEdit = {{ 'true' if question else 'false' }};
+    const url = isEdit ? `/api/questions/{{ question.id }}` : '/api/questions';
+    const method = isEdit ? 'PUT' : 'POST';
+
+    try {
+        const response = await fetch(url, {
+            method: method,
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+            window.location.href = '/banks?tab=all';
+        } else {
+            const error = await response.json();
+            alert('保存失败: ' + (error.detail || '未知错误'));
+        }
+    } catch (err) {
+        alert('保存失败: ' + err.message);
+    }
+});
+</script>
+{% endblock %}
+{% endblock %}

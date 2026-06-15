@@ -1,0 +1,1411 @@
+{% extends "base.html" %}
+
+{% block title %}InterviewQ - 面试进行中{% endblock %}
+
+{% block head %}
+<!-- Load animations CSS -->
+<link rel="stylesheet" href="/static/css/animations.css">
+<!-- Load JavaScript modules -->
+<script src="/static/js/draft-manager.js"></script>
+<script src="/static/js/network-manager.js"></script>
+<script src="/static/js/timer-manager.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+    <!-- Breadcrumb -->
+    <nav class="flex mb-4" aria-label="Breadcrumb">
+        <ol class="inline-flex items-center space-x-1 md:space-x-3">
+            <li class="inline-flex items-center">
+                <a href="/" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white inline-flex items-center text-sm font-medium transition-colors">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                    首页
+                </a>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path></svg>
+                    <a href="/sessions" class="ml-1 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white md:ml-2 transition-colors">模拟面试</a>
+                </div>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path></svg>
+                    <span class="ml-1 text-sm font-medium text-gray-700 dark:text-white md:ml-2">面试中</span>
+                </div>
+            </li>
+        </ol>
+    </nav>
+
+    {% if session %}
+    <div class="bg-white dark:bg-slate-800 shadow-sm rounded-xl border border-gray-200 dark:border-slate-700 overflow-hidden">
+        <!-- Session Header with Controls -->
+        <div class="px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-slate-700 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-slate-800 dark:to-slate-700/50">
+            <!-- Mobile Layout -->
+            <div class="flex flex-col space-y-3 sm:hidden">
+                <div>
+                    <h1 class="text-lg font-bold text-gray-900 dark:text-white">{{ session.title }}</h1>
+                    {% if session.job_role %}
+                    <p class="text-sm text-gray-500 dark:text-gray-400 flex items-center mt-1">
+                        <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                        </svg>
+                        {{ session.job_role }}
+                    </p>
+                    {% endif %}
+                </div>
+
+                <!-- Progress Bar -->
+                <div class="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2.5">
+                    <div id="progress-bar-fill" class="bg-gradient-to-r from-green-500 to-emerald-500 h-2.5 rounded-full progress-bar-animated" style="width: 0%"></div>
+                </div>
+                <p id="progress-text" class="text-xs text-gray-500 dark:text-gray-400 text-center">0 / {{ session.total_questions }}</p>
+
+                <!-- Control Buttons -->
+                {% if session.status == 'in_progress' %}
+                <div class="flex flex-wrap gap-2">
+                    <button id="pause-resume-btn" onclick="togglePause()" class="flex-1 min-w-[100px] px-3 py-2 border border-gray-300 dark:border-slate-600 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors ripple-effect">
+                        <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        暂停
+                    </button>
+                    <button id="skip-btn" onclick="skipQuestion()" class="flex-1 min-w-[100px] px-3 py-2 border border-gray-300 dark:border-slate-600 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors ripple-effect">
+                        <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        跳过
+                    </button>
+                    <button id="bookmark-btn" onclick="toggleBookmark()" class="px-3 py-2 border border-gray-300 dark:border-slate-600 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors ripple-effect">
+                        <svg id="bookmark-icon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
+                        </svg>
+                    </button>
+                    <button onclick="completeSession()" class="flex-1 min-w-[100px] px-3 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-red-600 hover:bg-red-700 transition-colors ripple-effect">
+                        结束面试
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Desktop Layout -->
+            <div class="hidden sm:flex justify-between items-start">
+                <div class="flex-1">
+                    <h1 class="text-xl font-bold text-gray-900 dark:text-white">{{ session.title }}</h1>
+                    {% if session.job_role %}
+                    <p class="text-sm text-gray-500 dark:text-gray-400 flex items-center mt-1">
+                        <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                        </svg>
+                        {{ session.job_role }}
+                    </p>
+                    {% endif %}
+
+                    <!-- Progress Bar -->
+                    <div class="mt-3 flex items-center space-x-3">
+                        <div class="flex-1 bg-gray-200 dark:bg-slate-700 rounded-full h-2.5">
+                            <div id="progress-bar-fill-desktop" class="bg-gradient-to-r from-green-500 to-emerald-500 h-2.5 rounded-full progress-bar-animated" style="width: 0%"></div>
+                        </div>
+                        <span id="progress-text-desktop" class="text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">0 / {{ session.total_questions }}</span>
+                    </div>
+                </div>
+
+                {% if session.status == 'in_progress' %}
+                <div class="flex items-center space-x-2 ml-4">
+                    <button id="pause-resume-btn-desktop" onclick="togglePause()" class="px-3 py-2 border border-gray-300 dark:border-slate-600 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors ripple-effect">
+                        <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        暂停
+                    </button>
+                    <button id="skip-btn-desktop" onclick="skipQuestion()" class="px-3 py-2 border border-gray-300 dark:border-slate-600 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors ripple-effect">
+                        <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        跳过
+                    </button>
+                    <button id="bookmark-btn-desktop" onclick="toggleBookmark()" class="px-3 py-2 border border-gray-300 dark:border-slate-600 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors ripple-effect" title="收藏此题">
+                        <svg id="bookmark-icon-desktop" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
+                        </svg>
+                    </button>
+                    <button onclick="completeSession()" class="px-3 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-red-600 hover:bg-red-700 transition-colors ripple-effect">
+                        结束面试
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Chat Area with improved scrolling -->
+        <div id="chat-container" class="h-[400px] sm:h-[500px] overflow-y-auto p-4 sm:p-6 space-y-4 bg-white dark:bg-slate-900 smooth-scroll">
+            {% for iq in questions %}
+            <div class="space-y-2 message-bubble" data-question-id="{{ iq.id }}" data-order="{{ iq.order_index }}" data-answered="{{ 'true' if iq.user_answer else 'false' }}" data-time-spent="{{ iq.time_spent or 0 }}" style="{% if not iq.user_answer and loop.index0 > 0 %}display: none;{% endif %}">
+                <!-- Question -->
+                <div class="flex justify-start">
+                    <div class="bg-blue-50 dark:bg-blue-900/20 text-blue-900 dark:text-blue-200 rounded-xl px-4 py-3 max-w-[85%] sm:max-w-[80%] border border-blue-200 dark:border-blue-800/30 shadow-sm">
+                        <p class="text-sm font-medium text-blue-600 dark:text-blue-400 mb-1">问题 #{{ iq.order_index + 1 }}</p>
+                        <p class="text-sm sm:text-base">{{ iq.question_text }}</p>
+                    </div>
+                </div>
+
+                {% if iq.user_answer %}
+                <!-- User Answer -->
+                <div class="flex justify-end">
+                    <div class="relative bg-gray-100 dark:bg-slate-700 text-gray-900 dark:text-white rounded-xl px-4 py-3 max-w-[85%] sm:max-w-[80%] shadow-sm" data-answer-bubble="{{ iq.id }}">
+                        <!-- Edit button -->
+                        <button onclick="editAnswer({{ iq.id }})" class="edit-answer-btn absolute top-2 right-2 p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors" title="编辑答案" data-question-id="{{ iq.id }}">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
+                            </svg>
+                        </button>
+
+                        <p class="text-sm sm:text-base whitespace-pre-wrap answer-text" data-original-answer="{{ iq.user_answer }}">{{ iq.user_answer }}</p>
+
+                        {% if iq.edit_count and iq.edit_count > 0 %}
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-2 edit-count-display">📝 已修改 {{ iq.edit_count }} 次</p>
+                        {% endif %}
+
+                        {% if iq.time_spent and iq.time_spent > 0 %}
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                            <svg class="w-3 h-3 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            用时 {{ iq.time_spent | format_time }}
+                        </p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- AI Feedback -->
+                {% if iq.ai_feedback %}
+                <div class="flex justify-start">
+                    <div class="bg-green-50 dark:bg-green-900/20 text-green-900 dark:text-green-200 rounded-xl px-4 py-3 max-w-[85%] sm:max-w-[80%] border border-green-200 dark:border-green-800/30 shadow-sm">
+                        <p class="text-sm font-medium text-green-600 dark:text-green-400 mb-1">
+                            AI 反馈
+                            {% if iq.score is not none %}
+                            <span class="ml-2 px-2 py-0.5 bg-green-200 dark:bg-green-800/50 rounded-full text-xs">{{ iq.score }}分</span>
+                            {% endif %}
+                        </p>
+                        <p class="text-sm sm:text-base whitespace-pre-wrap">{{ iq.ai_feedback }}</p>
+                    </div>
+                </div>
+                {% endif %}
+                {% endif %}
+            </div>
+            {% endfor %}
+
+            {% if questions|length == 0 %}
+            <div class="text-center text-gray-500 dark:text-gray-400 py-12 fade-in">
+                <svg class="w-16 h-16 mx-auto mb-4 text-gray-300 dark:text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                </svg>
+                <p class="text-lg font-medium">等待开始面试...</p>
+                <p class="text-sm mt-2">请在下方输入答案开始回答问题</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- View All Questions Button -->
+        {% if session.status == 'in_progress' and questions|length > 1 %}
+        <div class="px-4 sm:px-6 py-2 border-t border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800">
+            <button onclick="toggleAllQuestions()" class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 flex items-center">
+                <svg id="toggle-icon" class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+                <span id="toggle-text">查看所有题目 ({{ questions|length }})</span>
+            </button>
+        </div>
+        {% endif %}
+
+        <!-- Scroll to bottom button -->
+        <button id="scroll-to-bottom" class="hidden fixed bottom-24 right-8 p-3 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-all z-10 scroll-to-top" onclick="scrollToBottom()">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
+            </svg>
+        </button>
+
+        <!-- Input Area (Fixed on mobile) -->
+        {% if session.status == 'in_progress' %}
+        <div class="border-t border-gray-200 dark:border-slate-700 px-4 sm:px-6 py-3 sm:py-4 bg-gray-50 dark:bg-slate-800">
+            <form id="answer-form" class="space-y-2">
+                <textarea
+                    id="user-answer"
+                    rows="2"
+                    class="block w-full rounded-lg border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm focus:border-green-500 focus:ring-green-500 text-sm sm:text-base resize-none"
+                    placeholder="输入你的答案..."
+                    maxlength="5000"></textarea>
+
+                <div class="flex items-center justify-between flex-wrap gap-2">
+                    <div class="flex items-center space-x-3 text-xs sm:text-sm">
+                        <span id="timer-display" class="text-gray-500 dark:text-gray-400 flex items-center">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <span id="timer-text">00:00</span>
+                        </span>
+                        <span id="char-count" class="text-gray-400 dark:text-gray-500">0 / 5000</span>
+                        <span id="draft-status" class="text-gray-400 dark:text-gray-500"></span>
+                    </div>
+                    <button type="submit" id="submit-btn" class="px-4 sm:px-6 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 shadow-lg shadow-green-500/25 transition-all ripple-effect disabled:opacity-50 disabled:cursor-not-allowed">
+                        <span class="hidden sm:inline">提交答案</span>
+                        <span class="sm:hidden">提交</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if session.status == 'completed' %}
+    <div class="mt-4 text-center fade-in">
+        <a href="/sessions/{{ session.id }}/review" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-500/25 transition-all">
+            查看面试回顾
+            <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+            </svg>
+        </a>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="bg-white dark:bg-slate-800 shadow-sm rounded-xl border border-gray-200 dark:border-slate-700 p-12 text-center">
+        <svg class="w-16 h-16 mx-auto mb-4 text-gray-300 dark:text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <p class="text-gray-500 dark:text-gray-400 text-lg font-medium">会话未找到</p>
+        <a href="/sessions" class="mt-4 inline-block text-sm text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300">返回会话列表</a>
+    </div>
+    {% endif %}
+</div>
+
+<script src="/static/js/sse-stream.js"></script>
+<script>
+const sessionId = {{ session.id if session else 'null' }};
+let isStreaming = false;
+let isPaused = false;
+let currentSSEManager = null;
+let draftManager = null;
+let timerManager = null;
+let currentQuestionId = null;
+let isBookmarked = false;
+let answeredCount = {{ questions | selectattr('user_answer') | list | length }};
+const totalQuestions = {{ session.total_questions if session else 0 }};
+
+// Edit mode state
+let isEditMode = false;
+let editingQuestionId = null;
+let originalAnswer = '';
+
+// Ensure networkManager exists
+if (typeof window.networkManager === 'undefined') {
+    window.networkManager = new NetworkManager();
+}
+
+// Initialize managers
+if (sessionId) {
+    // Timer manager (will be initialized per question)
+    // Draft manager (will be initialized per question)
+
+    // Update progress on load
+    updateProgress();
+
+    // Restore draft if exists
+    const lastQuestion = document.querySelector('[data-question-id]');
+    if (lastQuestion) {
+        currentQuestionId = parseInt(lastQuestion.dataset.questionId);
+        initializeQuestionManagers();
+    }
+}
+
+// Initialize question-specific managers
+function initializeQuestionManagers() {
+    if (!currentQuestionId) return;
+
+    // Initialize draft manager
+    draftManager = new DraftManager(sessionId, currentQuestionId);
+    draftManager.onStatusChange((message, type) => {
+        const statusEl = document.getElementById('draft-status');
+        if (statusEl) {
+            statusEl.textContent = message;
+            statusEl.className = `text-xs ${
+                type === 'success' ? 'text-green-600 dark:text-green-400' :
+                type === 'offline' ? 'text-yellow-600 dark:text-yellow-400' :
+                type === 'editing' ? 'text-gray-400 dark:text-gray-500' :
+                'text-gray-400 dark:text-gray-500'
+            }`;
+        }
+    });
+
+    // Restore draft
+    const draft = draftManager.restoreDraft();
+    const answerInput = document.getElementById('user-answer');
+    if (draft && answerInput && !answerInput.value) {
+        answerInput.value = draft;
+        updateCharCount();
+        draftManager.updateStatus('已恢复草稿', 'success');
+        setTimeout(() => draftManager.updateStatus('', 'hidden'), 3000);
+    }
+
+    // Initialize timer manager — 恢复已有的用时
+    const currentBubble = document.querySelector(`[data-question-id="${currentQuestionId}"]`);
+    const existingTimeSpent = currentBubble ? parseInt(currentBubble.dataset.timeSpent || '0') : 0;
+    timerManager = new TimerManager(sessionId, currentQuestionId, existingTimeSpent);
+    timerManager.onTick((formatted) => {
+        const timerText = document.getElementById('timer-text');
+        if (timerText) {
+            timerText.textContent = formatted;
+        }
+    });
+    timerManager.start();
+}
+
+// Update progress bar
+function updateProgress() {
+    const percentage = totalQuestions > 0 ? (answeredCount / totalQuestions) * 100 : 0;
+    const progressFill = document.getElementById('progress-bar-fill');
+    const progressFillDesktop = document.getElementById('progress-bar-fill-desktop');
+    const progressText = document.getElementById('progress-text');
+    const progressTextDesktop = document.getElementById('progress-text-desktop');
+
+    if (progressFill) progressFill.style.width = percentage + '%';
+    if (progressFillDesktop) progressFillDesktop.style.width = percentage + '%';
+    if (progressText) progressText.textContent = `${answeredCount} / ${totalQuestions}`;
+    if (progressTextDesktop) progressTextDesktop.textContent = `${answeredCount} / ${totalQuestions}`;
+}
+
+// Character count update
+function updateCharCount() {
+    const answerInput = document.getElementById('user-answer');
+    const charCount = document.getElementById('char-count');
+    if (answerInput && charCount) {
+        const length = answerInput.value.length;
+        charCount.textContent = `${length} / 5000`;
+        if (length > 4500) {
+            charCount.className = 'text-red-500 dark:text-red-400';
+        } else if (length > 4000) {
+            charCount.className = 'text-yellow-600 dark:text-yellow-400';
+        } else {
+            charCount.className = 'text-gray-400 dark:text-gray-500';
+        }
+    }
+}
+
+// Auto-save draft on input
+const answerInput = document.getElementById('user-answer');
+if (answerInput) {
+    answerInput.addEventListener('input', () => {
+        updateCharCount();
+        if (draftManager) {
+            draftManager.autoSave(answerInput.value);
+        }
+    });
+
+    // Auto-expand textarea
+    answerInput.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = (this.scrollHeight) + 'px';
+    });
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+    // Ctrl+Enter to submit
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        const form = document.getElementById('answer-form');
+        if (form) {
+            form.dispatchEvent(new Event('submit'));
+        }
+    }
+});
+
+// Toggle pause/resume
+async function togglePause() {
+    try {
+        const endpoint = isPaused ? 'resume' : 'pause';
+        const response = await networkManager.smartFetch(`/api/sessions/${sessionId}/${endpoint}`, {
+            method: 'POST'
+        });
+
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        isPaused = !isPaused;
+        updatePauseButton();
+
+        if (isPaused) {
+            if (timerManager) timerManager.pause();
+            networkManager.showToast('面试已暂停', 'info', 3000);
+        } else {
+            if (timerManager) timerManager.resume();
+            networkManager.showToast('面试已恢复', 'success', 3000);
+        }
+    } catch (err) {
+        networkManager.showToast('操作失败: ' + err.message, 'error', 3000);
+    }
+}
+
+function updatePauseButton() {
+    const btnMobile = document.getElementById('pause-resume-btn');
+    const btnDesktop = document.getElementById('pause-resume-btn-desktop');
+
+    const text = isPaused ? '恢复' : '暂停';
+    const icon = isPaused ?
+        '<svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>' :
+        '<svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
+
+    if (btnMobile) btnMobile.innerHTML = icon + text;
+    if (btnDesktop) btnDesktop.innerHTML = icon + text;
+}
+
+// Skip question
+async function skipQuestion() {
+    if (!confirm('确定要跳过当前题目吗？')) return;
+
+    if (!currentQuestionId) {
+        networkManager.showToast('未找到当前题目', 'error', 3000);
+        return;
+    }
+
+    try {
+        const response = await networkManager.smartFetch(`/api/sessions/${sessionId}/questions/${currentQuestionId}/skip`, {
+            method: 'POST'
+        });
+
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const data = await response.json();
+        networkManager.showToast('已跳过题目', 'info', 3000);
+
+        // Clear draft and timer
+        if (draftManager) draftManager.clearDraft();
+        if (timerManager) timerManager.reset();
+
+        // Update progress
+        answeredCount++;
+        updateProgress();
+
+        // Show next question or complete
+        if (data.next_question) {
+            // Hide current question bubble, show next one
+            const bubbles = document.querySelectorAll('.message-bubble');
+            bubbles.forEach(bubble => {
+                const orderIndex = parseInt(bubble.getAttribute('data-order'));
+                const isAnswered = bubble.getAttribute('data-answered') === 'true';
+                if (!showingAllQuestions) {
+                    if (isAnswered || orderIndex === answeredCount) {
+                        bubble.style.display = 'block';
+                    } else {
+                        bubble.style.display = 'none';
+                    }
+                }
+            });
+
+            // Update current question ID for managers
+            const nextBubble = document.querySelector(`[data-order="${answeredCount}"]`);
+            if (nextBubble) {
+                currentQuestionId = parseInt(nextBubble.getAttribute('data-question-id'));
+                initializeQuestionManagers();
+            }
+
+            scrollToBottom();
+        } else if (data.session_completed) {
+            networkManager.showToast('面试已完成', 'success', 2000);
+            setTimeout(() => {
+                window.location.href = `/sessions/${sessionId}/review`;
+            }, 1500);
+        }
+    } catch (err) {
+        networkManager.showToast('跳过失败: ' + err.message, 'error', 3000);
+    }
+}
+
+// Toggle bookmark
+async function toggleBookmark() {
+    if (!currentQuestionId) return;
+
+    try {
+        const response = await networkManager.smartFetch(
+            `/api/sessions/${sessionId}/questions/${currentQuestionId}/bookmark`,
+            {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ is_bookmarked: !isBookmarked })
+            }
+        );
+
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        isBookmarked = !isBookmarked;
+        updateBookmarkButton();
+        networkManager.showToast(isBookmarked ? '已收藏题目' : '已取消收藏', 'success', 2000);
+    } catch (err) {
+        networkManager.showToast('操作失败: ' + err.message, 'error', 3000);
+    }
+}
+
+function updateBookmarkButton() {
+    const iconMobile = document.getElementById('bookmark-icon');
+    const iconDesktop = document.getElementById('bookmark-icon-desktop');
+
+    if (isBookmarked) {
+        if (iconMobile) iconMobile.setAttribute('fill', 'currentColor');
+        if (iconDesktop) iconDesktop.setAttribute('fill', 'currentColor');
+    } else {
+        if (iconMobile) iconMobile.setAttribute('fill', 'none');
+        if (iconDesktop) iconDesktop.setAttribute('fill', 'none');
+    }
+}
+
+// Scroll to bottom
+function scrollToBottom() {
+    const container = document.getElementById('chat-container');
+    if (container) {
+        container.scrollTo({
+            top: container.scrollHeight,
+            behavior: 'smooth'
+        });
+    }
+}
+
+// Show/hide scroll to bottom button
+const chatContainer = document.getElementById('chat-container');
+const scrollBtn = document.getElementById('scroll-to-bottom');
+if (chatContainer && scrollBtn) {
+    chatContainer.addEventListener('scroll', () => {
+        const isAtBottom = chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight < 100;
+        if (isAtBottom) {
+            scrollBtn.classList.add('hidden');
+        } else {
+            scrollBtn.classList.remove('hidden');
+        }
+    });
+}
+
+// Message append with animation
+function appendMessage(type, content, metadata = {}) {
+    const container = document.getElementById('chat-container');
+    const wrapper = document.createElement('div');
+    wrapper.className = 'flex ' + (type === 'answer' ? 'justify-end' : 'justify-start');
+
+    let bgClass = 'bg-gray-100 dark:bg-slate-700 text-gray-900 dark:text-white';
+    let label = '';
+
+    if (type === 'question') {
+        bgClass = 'bg-blue-50 dark:bg-blue-900/20 text-blue-900 dark:text-blue-200 border border-blue-200 dark:border-blue-800/30';
+        const questionNum = metadata.questionNum || (answeredCount + 1);
+        label = `<p class="text-sm font-medium text-blue-600 dark:text-blue-400 mb-1">问题 #${questionNum}</p>`;
+    } else if (type === 'feedback') {
+        bgClass = 'bg-green-50 dark:bg-green-900/20 text-green-900 dark:text-green-200 border border-green-200 dark:border-green-800/30';
+        label = '<p class="text-sm font-medium text-green-600 dark:text-green-400 mb-1">AI 反馈</p>';
+    }
+
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `${bgClass} rounded-xl px-4 py-3 max-w-[85%] sm:max-w-[80%] shadow-sm message-bubble`;
+    messageDiv.innerHTML = `${label}<p class="text-sm sm:text-base whitespace-pre-wrap">${escapeHtml(content)}</p>`;
+
+    wrapper.appendChild(messageDiv);
+    container.appendChild(wrapper);
+    container.scrollTop = container.scrollHeight;
+
+    return messageDiv.querySelector('p:last-child');
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Create streaming feedback bubble with typing indicator
+function createStreamingFeedbackBubble() {
+    const container = document.getElementById('chat-container');
+    const wrapper = document.createElement('div');
+    wrapper.className = 'flex justify-start streaming-feedback-wrapper';
+    wrapper.setAttribute('data-streaming', 'true');
+
+    const bubbleDiv = document.createElement('div');
+    bubbleDiv.className = 'bg-green-50 dark:bg-green-900/20 text-green-900 dark:text-green-200 rounded-xl px-4 py-3 max-w-[85%] sm:max-w-[80%] border border-green-200 dark:border-green-800/30 shadow-sm message-bubble';
+    bubbleDiv.innerHTML = `
+        <p class="text-sm font-medium text-green-600 dark:text-green-400 mb-1">
+            AI 反馈
+            <span class="ml-2 text-xs text-gray-500 dark:text-gray-400 generating-indicator">正在生成...</span>
+        </p>
+        <div class="typing-indicator text-gray-400 mb-2">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+        <p class="streaming-text text-sm sm:text-base"></p>
+    `;
+
+    wrapper.appendChild(bubbleDiv);
+    container.appendChild(wrapper);
+    container.scrollTop = container.scrollHeight;
+
+    return {
+        wrapper: wrapper,
+        textEl: bubbleDiv.querySelector('.streaming-text'),
+        typingIndicator: bubbleDiv.querySelector('.typing-indicator'),
+        headerEl: bubbleDiv.querySelector('p:first-child'),
+        generatingIndicator: bubbleDiv.querySelector('.generating-indicator')
+    };
+}
+
+// Submit answer with streaming
+async function submitAnswerStream(answer) {
+    isStreaming = true;
+    const submitBtn = document.getElementById('submit-btn');
+    if (submitBtn) submitBtn.disabled = true;
+
+    // Disable all edit buttons during streaming
+    disableEditButtons();
+
+    // Stop timer
+    if (timerManager) {
+        timerManager.stop();
+    }
+
+    const { wrapper, textEl, typingIndicator, headerEl, generatingIndicator } = createStreamingFeedbackBubble();
+    let accumulatedText = '';
+    let hasReceivedToken = false;
+    let lastTokenTime = Date.now();
+    let checkIdleInterval = null;
+
+    if (currentSSEManager) {
+        currentSSEManager.disconnect();
+    }
+
+    currentSSEManager = new SSEManager(`/api/sessions/${sessionId}/answer/stream`, {
+        useFetch: true,
+        fetchOptions: {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_answer: answer }),
+        },
+        heartbeatTimeout: 0,
+        reconnectDelay: 0,
+        maxReconnectAttempts: 0,
+    });
+
+    // Monitor idle time during streaming
+    checkIdleInterval = setInterval(() => {
+        if (hasReceivedToken && isStreaming) {
+            const idleTime = Date.now() - lastTokenTime;
+            if (idleTime > 3000 && idleTime < 8000) {
+                // Show "thinking" indicator after 3s of idle
+                if (generatingIndicator) {
+                    generatingIndicator.textContent = '思考中...';
+                    generatingIndicator.classList.remove('text-gray-500');
+                    generatingIndicator.classList.add('text-yellow-500', 'dark:text-yellow-400');
+                }
+            } else if (idleTime >= 8000) {
+                // Show "still processing" after 8s
+                if (generatingIndicator) {
+                    generatingIndicator.textContent = '正在处理，请稍候...';
+                    generatingIndicator.classList.remove('text-yellow-500', 'dark:text-yellow-400');
+                    generatingIndicator.classList.add('text-orange-500', 'dark:text-orange-400');
+                }
+            }
+        }
+    }, 1000);
+
+    currentSSEManager.addEventListener('token', (data) => {
+        hasReceivedToken = true;
+        lastTokenTime = Date.now();
+
+        // Hide typing indicator once we get first token
+        if (typingIndicator && typingIndicator.style.display !== 'none') {
+            typingIndicator.style.display = 'none';
+        }
+
+        // Update generating indicator
+        if (generatingIndicator) {
+            generatingIndicator.textContent = '生成中...';
+            generatingIndicator.classList.remove('text-yellow-500', 'dark:text-yellow-400', 'text-orange-500', 'dark:text-orange-400');
+            generatingIndicator.classList.add('text-green-500', 'dark:text-green-400');
+        }
+
+        accumulatedText += data.content;
+        textEl.textContent = accumulatedText;
+
+        const container = document.getElementById('chat-container');
+        container.scrollTop = container.scrollHeight;
+    });
+
+    currentSSEManager.addEventListener('done', (data) => {
+        clearInterval(checkIdleInterval);
+
+        // Remove streaming marker and indicator
+        if (wrapper) {
+            wrapper.removeAttribute('data-streaming');
+        }
+        if (generatingIndicator) {
+            generatingIndicator.remove();
+        }
+
+        textEl.textContent = data.content || accumulatedText;
+
+        if (data.score !== undefined && data.score !== null) {
+            const badge = document.createElement('span');
+            badge.className = 'ml-2 px-2 py-0.5 bg-green-200 dark:bg-green-800/50 rounded-full text-xs';
+            badge.textContent = data.score + '分';
+            headerEl.appendChild(badge);
+        }
+
+        // Clear draft
+        if (draftManager) {
+            draftManager.clearDraft();
+        }
+
+        // Update progress
+        answeredCount++;
+        updateProgress();
+
+        // Check if followup choice should be shown (low score < 60)
+        if (data.show_followup_choice && data.followup) {
+            // Show followup choice UI instead of directly showing next question
+            setTimeout(() => {
+                appendFollowupChoice(data.followup);
+                scrollToBottom();
+            }, 500);
+        } else if (data.next_question) {
+            setTimeout(() => {
+                appendMessage('question', data.next_question, { questionNum: answeredCount + 1 });
+
+                // Update current question display: hide previous, show next
+                const bubbles = document.querySelectorAll('.message-bubble:not([data-streaming])');
+                bubbles.forEach(bubble => {
+                    const orderIndex = parseInt(bubble.getAttribute('data-order'));
+                    const isAnswered = bubble.getAttribute('data-answered') === 'true';
+                    // Show if answered OR if it's the new current question
+                    if (!showingAllQuestions) {
+                        if (isAnswered || orderIndex === answeredCount) {
+                            bubble.style.display = 'block';
+                        } else {
+                            bubble.style.display = 'none';
+                        }
+                    }
+                });
+
+                // Update current question ID for managers
+                const nextBubble = document.querySelector(`[data-order="${answeredCount}"]`);
+                if (nextBubble) {
+                    currentQuestionId = parseInt(nextBubble.getAttribute('data-question-id'));
+                    initializeQuestionManagers();
+                }
+
+                scrollToBottom();
+            }, 500);
+        }
+
+        if (data.session_completed) {
+            networkManager.showToast('面试已完成！', 'success', 2000);
+            setTimeout(() => {
+                window.location.href = `/sessions/${sessionId}/review`;
+            }, 2000);
+        }
+
+        isStreaming = false;
+        if (submitBtn) submitBtn.disabled = false;
+        currentSSEManager.disconnect();
+        currentSSEManager = null;
+
+        // Re-enable edit buttons
+        enableEditButtons();
+    });
+
+    currentSSEManager.addEventListener('error', (data) => {
+        clearInterval(checkIdleInterval);
+
+        const errMsg = (typeof data === 'object' && data.content) ? data.content : '发生错误';
+
+        // Only show error if we haven't received substantial content
+        if (accumulatedText.length < 50) {
+            textEl.textContent = errMsg;
+        } else {
+            // If we have content, treat it as partial success
+            textEl.textContent = accumulatedText + '\n\n[注：反馈可能不完整]';
+        }
+
+        if (typingIndicator) typingIndicator.style.display = 'none';
+        if (generatingIndicator) generatingIndicator.remove();
+        if (wrapper) wrapper.removeAttribute('data-streaming');
+
+        networkManager.showToast('提交失败: ' + errMsg, 'error', 5000);
+
+        isStreaming = false;
+        if (submitBtn) submitBtn.disabled = false;
+        enableEditButtons();
+    });
+
+    currentSSEManager.addEventListener('connected', () => {
+        console.log('SSE connected');
+    });
+
+    currentSSEManager.addEventListener('maxRetriesReached', () => {
+        clearInterval(checkIdleInterval);
+
+        textEl.textContent = '连接中断，请重试';
+        if (typingIndicator) typingIndicator.style.display = 'none';
+        if (generatingIndicator) generatingIndicator.remove();
+        if (wrapper) wrapper.removeAttribute('data-streaming');
+
+        networkManager.showToast('连接中断，请重试', 'error', 5000);
+
+        isStreaming = false;
+        if (submitBtn) submitBtn.disabled = false;
+        enableEditButtons();
+    });
+
+    try {
+        currentSSEManager.connect();
+    } catch (err) {
+        clearInterval(checkIdleInterval);
+
+        textEl.textContent = '提交失败: ' + err.message;
+        if (typingIndicator) typingIndicator.style.display = 'none';
+        if (generatingIndicator) generatingIndicator.remove();
+        if (wrapper) wrapper.removeAttribute('data-streaming');
+
+        networkManager.showToast('提交失败: ' + err.message, 'error', 5000);
+
+        isStreaming = false;
+        if (submitBtn) submitBtn.disabled = false;
+        enableEditButtons();
+    }
+}
+
+// Form submit handler
+document.getElementById('answer-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (isStreaming || isPaused) return;
+
+    const answerInput = document.getElementById('user-answer');
+    const answer = answerInput.value.trim();
+    if (!answer) {
+        networkManager.showToast('请输入答案', 'warning', 2000);
+        return;
+    }
+
+    appendMessage('answer', answer);
+    answerInput.value = '';
+    answerInput.style.height = 'auto';
+    updateCharCount();
+
+    await submitAnswerStream(answer);
+});
+
+// Complete session
+async function completeSession() {
+    if (!confirm('确定要结束面试吗？')) return;
+
+    try {
+        const response = await networkManager.smartFetch(`/api/sessions/${sessionId}/complete`, {
+            method: 'POST'
+        });
+
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        networkManager.showToast('面试已结束', 'success', 2000);
+        setTimeout(() => {
+            window.location.href = `/sessions/${sessionId}/review`;
+        }, 1000);
+    } catch (err) {
+        networkManager.showToast('结束面试失败: ' + err.message, 'error', 3000);
+    }
+}
+
+// Toggle all questions view
+let showingAllQuestions = false;
+function toggleAllQuestions() {
+    showingAllQuestions = !showingAllQuestions;
+    const container = document.getElementById('chat-container');
+    const toggleText = document.getElementById('toggle-text');
+    const toggleIcon = document.getElementById('toggle-icon');
+
+    if (showingAllQuestions) {
+        // Show all questions (except currently streaming feedback)
+        const bubbles = container.querySelectorAll('.message-bubble');
+        bubbles.forEach(bubble => {
+            // Don't show/hide streaming feedback wrappers
+            const parentWrapper = bubble.closest('[data-streaming="true"]');
+            if (!parentWrapper) {
+                bubble.style.display = 'block';
+            }
+        });
+        if (toggleText) toggleText.textContent = '收起题目';
+        if (toggleIcon) {
+            toggleIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path>';
+        }
+    } else {
+        // Show only answered and current question
+        const bubbles = container.querySelectorAll('.message-bubble');
+        bubbles.forEach((bubble, idx) => {
+            const parentWrapper = bubble.closest('[data-streaming="true"]');
+            if (!parentWrapper) {
+                const isAnswered = bubble.getAttribute('data-answered') === 'true';
+                const orderIndex = parseInt(bubble.getAttribute('data-order'));
+                // Show if answered OR if it's the current unanswered question
+                if (isAnswered || orderIndex === answeredCount) {
+                    bubble.style.display = 'block';
+                } else {
+                    bubble.style.display = 'none';
+                }
+            }
+        });
+        if (toggleText) toggleText.textContent = `查看所有题目 (${totalQuestions})`;
+        if (toggleIcon) {
+            toggleIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>';
+        }
+    }
+    scrollToBottom();
+}
+
+// Edit answer functionality
+function editAnswer(questionId) {
+    if (isStreaming) {
+        networkManager.showToast('请等待当前反馈生成完成', 'warning', 2000);
+        return;
+    }
+
+    if (isEditMode) {
+        networkManager.showToast('请先完成当前编辑', 'warning', 2000);
+        return;
+    }
+
+    isEditMode = true;
+    editingQuestionId = questionId;
+
+    const answerBubble = document.querySelector(`[data-answer-bubble="${questionId}"]`);
+    if (!answerBubble) return;
+
+    const answerText = answerBubble.querySelector('.answer-text');
+    if (!answerText) return;
+
+    originalAnswer = answerText.dataset.originalAnswer || answerText.textContent;
+
+    // Replace answer text with textarea
+    const editContainer = document.createElement('div');
+    editContainer.className = 'edit-mode-container';
+    editContainer.innerHTML = `
+        <textarea class="w-full rounded-lg border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm resize-none" rows="4" maxlength="5000">${escapeHtml(originalAnswer)}</textarea>
+        <div class="flex items-center justify-end space-x-2 mt-2">
+            <button onclick="cancelEdit()" class="px-3 py-1.5 border border-gray-300 dark:border-slate-600 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors">
+                取消
+            </button>
+            <button onclick="submitEdit()" class="px-3 py-1.5 border border-transparent text-sm font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 transition-colors">
+                重新提交
+            </button>
+        </div>
+    `;
+
+    // Hide original text and edit button
+    answerText.style.display = 'none';
+    const editBtn = answerBubble.querySelector('.edit-answer-btn');
+    if (editBtn) editBtn.style.display = 'none';
+
+    // Insert edit container
+    answerBubble.appendChild(editContainer);
+
+    // Focus textarea
+    const textarea = editContainer.querySelector('textarea');
+    if (textarea) {
+        textarea.focus();
+        textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+    }
+}
+
+function cancelEdit() {
+    if (!isEditMode) return;
+
+    const answerBubble = document.querySelector(`[data-answer-bubble="${editingQuestionId}"]`);
+    if (!answerBubble) return;
+
+    // Remove edit container
+    const editContainer = answerBubble.querySelector('.edit-mode-container');
+    if (editContainer) editContainer.remove();
+
+    // Show original text and edit button
+    const answerText = answerBubble.querySelector('.answer-text');
+    const editBtn = answerBubble.querySelector('.edit-answer-btn');
+    if (answerText) answerText.style.display = 'block';
+    if (editBtn) editBtn.style.display = 'block';
+
+    isEditMode = false;
+    editingQuestionId = null;
+    originalAnswer = '';
+}
+
+async function submitEdit() {
+    if (!isEditMode || !editingQuestionId) return;
+
+    const answerBubble = document.querySelector(`[data-answer-bubble="${editingQuestionId}"]`);
+    if (!answerBubble) return;
+
+    const editContainer = answerBubble.querySelector('.edit-mode-container');
+    const textarea = editContainer?.querySelector('textarea');
+    if (!textarea) return;
+
+    const newAnswer = textarea.value.trim();
+    if (!newAnswer) {
+        networkManager.showToast('答案不能为空', 'warning', 2000);
+        return;
+    }
+
+    if (newAnswer === originalAnswer) {
+        networkManager.showToast('答案未修改', 'info', 2000);
+        cancelEdit();
+        return;
+    }
+
+    // Remove edit container
+    if (editContainer) editContainer.remove();
+
+    // Update answer text
+    const answerText = answerBubble.querySelector('.answer-text');
+    if (answerText) {
+        answerText.textContent = newAnswer;
+        answerText.dataset.originalAnswer = newAnswer;
+        answerText.style.display = 'block';
+    }
+
+    // Show edit button
+    const editBtn = answerBubble.querySelector('.edit-answer-btn');
+    if (editBtn) editBtn.style.display = 'block';
+
+    // Find and remove old feedback bubble (next sibling)
+    let nextElement = answerBubble.parentElement.nextElementSibling;
+    if (nextElement && nextElement.querySelector('.bg-green-50, .bg-green-900\\/20')) {
+        nextElement.remove();
+    }
+
+    // Reset edit mode
+    isEditMode = false;
+    const currentEditingId = editingQuestionId;
+    editingQuestionId = null;
+    originalAnswer = '';
+
+    // Start streaming edit feedback
+    await submitEditStream(currentEditingId, newAnswer);
+}
+
+async function submitEditStream(questionId, answer) {
+    isStreaming = true;
+    const submitBtn = document.getElementById('submit-btn');
+    if (submitBtn) submitBtn.disabled = true;
+
+    disableEditButtons();
+
+    const { wrapper, textEl, typingIndicator, headerEl, generatingIndicator } = createStreamingFeedbackBubble();
+    let accumulatedText = '';
+    let hasReceivedToken = false;
+    let lastTokenTime = Date.now();
+    let checkIdleInterval = null;
+
+    if (currentSSEManager) {
+        currentSSEManager.disconnect();
+    }
+
+    currentSSEManager = new SSEManager(`/api/sessions/${sessionId}/questions/${questionId}/answer`, {
+        useFetch: true,
+        fetchOptions: {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_answer: answer }),
+        },
+        heartbeatTimeout: 0,
+        reconnectDelay: 0,
+        maxReconnectAttempts: 0,
+    });
+
+    checkIdleInterval = setInterval(() => {
+        if (hasReceivedToken && isStreaming) {
+            const idleTime = Date.now() - lastTokenTime;
+            if (idleTime > 3000 && idleTime < 8000) {
+                if (generatingIndicator) {
+                    generatingIndicator.textContent = '思考中...';
+                    generatingIndicator.classList.remove('text-gray-500');
+                    generatingIndicator.classList.add('text-yellow-500', 'dark:text-yellow-400');
+                }
+            } else if (idleTime >= 8000) {
+                if (generatingIndicator) {
+                    generatingIndicator.textContent = '正在处理，请稍候...';
+                    generatingIndicator.classList.remove('text-yellow-500', 'dark:text-yellow-400');
+                    generatingIndicator.classList.add('text-orange-500', 'dark:text-orange-400');
+                }
+            }
+        }
+    }, 1000);
+
+    currentSSEManager.addEventListener('token', (data) => {
+        hasReceivedToken = true;
+        lastTokenTime = Date.now();
+
+        if (typingIndicator && typingIndicator.style.display !== 'none') {
+            typingIndicator.style.display = 'none';
+        }
+
+        if (generatingIndicator) {
+            generatingIndicator.textContent = '生成中...';
+            generatingIndicator.classList.remove('text-yellow-500', 'dark:text-yellow-400', 'text-orange-500', 'dark:text-orange-400');
+            generatingIndicator.classList.add('text-green-500', 'dark:text-green-400');
+        }
+
+        accumulatedText += data.content;
+        textEl.textContent = accumulatedText;
+
+        const container = document.getElementById('chat-container');
+        container.scrollTop = container.scrollHeight;
+    });
+
+    currentSSEManager.addEventListener('done', (data) => {
+        clearInterval(checkIdleInterval);
+
+        if (wrapper) {
+            wrapper.removeAttribute('data-streaming');
+        }
+        if (generatingIndicator) {
+            generatingIndicator.remove();
+        }
+
+        textEl.textContent = data.content || accumulatedText;
+
+        if (data.score !== undefined && data.score !== null) {
+            const badge = document.createElement('span');
+            badge.className = 'ml-2 px-2 py-0.5 bg-green-200 dark:bg-green-800/50 rounded-full text-xs';
+            badge.textContent = data.score + '分';
+            headerEl.appendChild(badge);
+        }
+
+        // Update edit count display
+        const answerBubble = document.querySelector(`[data-answer-bubble="${questionId}"]`);
+        if (answerBubble) {
+            let editCountDisplay = answerBubble.querySelector('.edit-count-display');
+            if (!editCountDisplay) {
+                editCountDisplay = document.createElement('p');
+                editCountDisplay.className = 'text-xs text-gray-500 dark:text-gray-400 mt-2 edit-count-display';
+                const answerText = answerBubble.querySelector('.answer-text');
+                if (answerText && answerText.nextElementSibling) {
+                    answerText.parentNode.insertBefore(editCountDisplay, answerText.nextElementSibling);
+                } else {
+                    answerBubble.appendChild(editCountDisplay);
+                }
+            }
+            // Increment count (assuming it was incremented on server)
+            const currentCount = parseInt(editCountDisplay.textContent.match(/\d+/)?.[0] || '0') + 1;
+            editCountDisplay.textContent = `📝 已修改 ${currentCount} 次`;
+        }
+
+        // Check if followup was created
+        if (data.followup) {
+            setTimeout(() => {
+                appendFollowupChoice(data.followup);
+                scrollToBottom();
+            }, 500);
+        }
+
+        networkManager.showToast('答案已更新', 'success', 2000);
+
+        isStreaming = false;
+        if (submitBtn) submitBtn.disabled = false;
+        currentSSEManager.disconnect();
+        currentSSEManager = null;
+
+        enableEditButtons();
+    });
+
+    currentSSEManager.addEventListener('error', (data) => {
+        clearInterval(checkIdleInterval);
+
+        const errMsg = (typeof data === 'object' && data.content) ? data.content : '发生错误';
+
+        if (accumulatedText.length < 50) {
+            textEl.textContent = errMsg;
+        } else {
+            textEl.textContent = accumulatedText + '\n\n[注：反馈可能不完整]';
+        }
+
+        if (typingIndicator) typingIndicator.style.display = 'none';
+        if (generatingIndicator) generatingIndicator.remove();
+        if (wrapper) wrapper.removeAttribute('data-streaming');
+
+        networkManager.showToast('更新失败: ' + errMsg, 'error', 5000);
+
+        isStreaming = false;
+        if (submitBtn) submitBtn.disabled = false;
+        enableEditButtons();
+    });
+
+    currentSSEManager.addEventListener('connected', () => {
+        console.log('SSE connected for edit');
+    });
+
+    currentSSEManager.addEventListener('maxRetriesReached', () => {
+        clearInterval(checkIdleInterval);
+
+        textEl.textContent = '连接中断，请重试';
+        if (typingIndicator) typingIndicator.style.display = 'none';
+        if (generatingIndicator) generatingIndicator.remove();
+        if (wrapper) wrapper.removeAttribute('data-streaming');
+
+        networkManager.showToast('连接中断，请重试', 'error', 5000);
+
+        isStreaming = false;
+        if (submitBtn) submitBtn.disabled = false;
+        enableEditButtons();
+    });
+
+    try {
+        currentSSEManager.connect();
+    } catch (err) {
+        clearInterval(checkIdleInterval);
+
+        textEl.textContent = '更新失败: ' + err.message;
+        if (typingIndicator) typingIndicator.style.display = 'none';
+        if (generatingIndicator) generatingIndicator.remove();
+        if (wrapper) wrapper.removeAttribute('data-streaming');
+
+        networkManager.showToast('更新失败: ' + err.message, 'error', 5000);
+
+        isStreaming = false;
+        if (submitBtn) submitBtn.disabled = false;
+        enableEditButtons();
+    }
+}
+
+// Followup choice functionality
+function appendFollowupChoice(followupData) {
+    const container = document.getElementById('chat-container');
+    const wrapper = document.createElement('div');
+    wrapper.className = 'followup-choice-wrapper my-4';
+    wrapper.innerHTML = `
+        <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800/30 rounded-xl px-4 py-3 max-w-[90%] mx-auto shadow-sm">
+            <p class="text-sm font-medium text-yellow-800 dark:text-yellow-200 mb-3 flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+                评分较低，系统为您生成了追问题
+            </p>
+            <p class="text-sm text-gray-700 dark:text-gray-300 mb-3">${escapeHtml(followupData.question_text)}</p>
+            <div class="flex items-center space-x-2">
+                <button onclick="answerFollowup()" class="flex-1 px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 transition-colors ripple-effect">
+                    回答追问题
+                </button>
+                <button onclick="skipFollowup(${followupData.order_index})" class="flex-1 px-4 py-2 border border-gray-300 dark:border-slate-600 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors ripple-effect">
+                    跳过进入下一题
+                </button>
+            </div>
+        </div>
+    `;
+
+    container.appendChild(wrapper);
+    container.scrollTop = container.scrollHeight;
+}
+
+function answerFollowup() {
+    const choiceWrapper = document.querySelector('.followup-choice-wrapper');
+    if (choiceWrapper) {
+        choiceWrapper.remove();
+    }
+
+    // The followup question is already in the questions list, just show it
+    // Update progress would have been done after the original answer
+    // The next question logic should handle showing the followup
+
+    networkManager.showToast('请回答追问题', 'info', 2000);
+    scrollToBottom();
+}
+
+async function skipFollowup(orderIndex) {
+    const choiceWrapper = document.querySelector('.followup-choice-wrapper');
+    if (choiceWrapper) {
+        choiceWrapper.remove();
+    }
+
+    // Find the followup question by order_index
+    const followupBubble = document.querySelector(`[data-order="${orderIndex}"]`);
+    if (!followupBubble) {
+        networkManager.showToast('无法找到追问题', 'error', 2000);
+        return;
+    }
+
+    const followupQuestionId = parseInt(followupBubble.dataset.questionId);
+
+    try {
+        const response = await networkManager.smartFetch(
+            `/api/sessions/${sessionId}/questions/${followupQuestionId}/skip`,
+            {
+                method: 'POST'
+            }
+        );
+
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const data = await response.json();
+        networkManager.showToast('已跳过追问题', 'info', 2000);
+
+        // Mark followup as skipped visually
+        followupBubble.style.opacity = '0.6';
+        followupBubble.style.filter = 'grayscale(50%)';
+
+        // Show next question if exists
+        if (data.next_question) {
+            setTimeout(() => {
+                appendMessage('question', data.next_question, { questionNum: answeredCount + 1 });
+
+                // Update current question for managers
+                const nextBubble = document.querySelector(`[data-order="${answeredCount}"]`);
+                if (nextBubble) {
+                    currentQuestionId = parseInt(nextBubble.getAttribute('data-question-id'));
+                    initializeQuestionManagers();
+                }
+
+                scrollToBottom();
+            }, 500);
+        } else if (data.session_completed) {
+            networkManager.showToast('面试已完成', 'success', 2000);
+            setTimeout(() => {
+                window.location.href = `/sessions/${sessionId}/review`;
+            }, 2000);
+        }
+    } catch (err) {
+        networkManager.showToast('跳过失败: ' + err.message, 'error', 3000);
+    }
+}
+
+// Enable/disable edit buttons
+function disableEditButtons() {
+    document.querySelectorAll('.edit-answer-btn').forEach(btn => {
+        btn.disabled = true;
+        btn.style.opacity = '0.5';
+        btn.style.cursor = 'not-allowed';
+    });
+}
+
+function enableEditButtons() {
+    document.querySelectorAll('.edit-answer-btn').forEach(btn => {
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.style.cursor = 'pointer';
+    });
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+    if (timerManager) {
+        timerManager.forceReport();
+    }
+    if (draftManager && answerInput) {
+        draftManager.forceSave(answerInput.value);
+    }
+});
+
+// Network status listener
+if (window.networkManager) {
+    networkManager.addListener((status) => {
+        console.log('Network status:', status);
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,48 @@
+# === Python ===
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.venv/
+.env
+*.db
+
+# === Data & Runtime ===
+data/
+server.log
+app.db
+
+# === Testing & Quality ===
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+tailwindcss
+
+# === Build Artifacts ===
+app/static/css/tailwind.css
+
+# === Tool Configs (personal / local) ===
+.playwright-cli/
+.serena/
+.trellis/
+.opencode/
+.claude/
+00_MEMORY/
+.vscode/
+.idea/
+
+# === OS ===
+.DS_Store
+Thumbs.db
+
+# === Dev Artifacts ===
+*.png
+*.log
+=*
+
+# === AI Agent Configs ===
+AGENTS.md

@@ -1,0 +1,1313 @@
+{% extends "base.html" %}
+
+{% block title %}InterviewQ - 智能出题{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <!-- Breadcrumb -->
+    <nav class="flex mb-6" aria-label="Breadcrumb">
+        <ol class="inline-flex items-center space-x-1 md:space-x-3">
+            <li class="inline-flex items-center">
+                <a href="/" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white inline-flex items-center text-sm font-medium transition-colors">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                    首页
+                </a>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path></svg>
+                    <span class="ml-1 text-sm font-medium text-gray-700 dark:text-white md:ml-2">智能出题</span>
+                </div>
+            </li>
+        </ol>
+    </nav>
+
+    <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
+        <svg class="w-8 h-8 mr-3 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+        </svg>
+        AI 智能出题
+    </h1>
+
+    <!-- Feature Description -->
+    <div class="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-800/30 rounded-xl p-4 mb-6">
+        <h2 class="text-sm font-semibold text-blue-900 dark:text-blue-300 mb-2 flex items-center">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            支持多种出题方式
+        </h2>
+        <ul class="text-sm text-blue-800 dark:text-blue-300 space-y-1">
+            <li class="flex items-center">
+                <svg class="w-4 h-4 mr-2 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+                仅提供岗位名称和职位描述（JD）
+            </li>
+            <li class="flex items-center">
+                <svg class="w-4 h-4 mr-2 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+                仅上传简历文件（岗位名称必填）
+            </li>
+            <li class="flex items-center">
+                <svg class="w-4 h-4 mr-2 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+                结合简历和岗位信息（推荐，针对性更强）
+            </li>
+        </ul>
+    </div>
+
+    <!-- Upload Form -->
+    <div class="bg-white dark:bg-slate-800 shadow-sm rounded-xl border border-gray-200 dark:border-slate-700 p-6 mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+            <svg class="w-5 h-5 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+            </svg>
+            上传简历
+        </h2>
+        <form id="resume-form" enctype="multipart/form-data">
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">简历文件（可选）</label>
+                <input type="file" name="file" accept=".pdf,.docx,.txt,.md"
+                    class="block w-full text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 dark:file:bg-blue-900/30 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/50">
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">支持 PDF、Word、Markdown、纯文本格式</p>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    岗位名称 <span class="text-red-500">*</span>
+                </label>
+                <input type="text" name="job_title" required placeholder="例如：产品经理、前端工程师、数据分析师"
+                    class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white">
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">生成的面试题将围绕此岗位展开</p>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">职位描述（可选）</label>
+                <textarea name="jd_text" rows="4" placeholder="粘贴职位描述，AI 将生成更针对性的面试题..."
+                    class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"></textarea>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">生成题目数量</label>
+                    <input type="number" name="question_count" value="10" min="1" max="500"
+                        class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">题库名称（可选）</label>
+                    <input type="text" name="bank_name" placeholder="自动生成"
+                        class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white">
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">生成模式</label>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <label class="relative flex cursor-pointer rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 p-4 hover:border-blue-500 dark:hover:border-blue-500 transition-colors">
+                        <input type="radio" name="generation_mode" value="fast" class="sr-only peer">
+                        <div class="flex-1">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-sm font-semibold text-gray-900 dark:text-white">⚡ 快速模式</span>
+                            </div>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">快速预览，基础质量</p>
+                        </div>
+                        <div class="absolute inset-0 rounded-lg border-2 border-blue-500 peer-checked:block hidden"></div>
+                    </label>
+
+                    <label class="relative flex cursor-pointer rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 p-4 hover:border-blue-500 dark:hover:border-blue-500 transition-colors">
+                        <input type="radio" name="generation_mode" value="standard" class="sr-only peer" checked>
+                        <div class="flex-1">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-sm font-semibold text-gray-900 dark:text-white">⚙️ 标准模式</span>
+                            </div>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">平衡速度与质量（推荐）</p>
+                        </div>
+                        <div class="absolute inset-0 rounded-lg border-2 border-blue-500 peer-checked:block hidden"></div>
+                    </label>
+
+                    <label class="relative flex cursor-pointer rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 p-4 hover:border-blue-500 dark:hover:border-blue-500 transition-colors">
+                        <input type="radio" name="generation_mode" value="deep" class="sr-only peer">
+                        <div class="flex-1">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-sm font-semibold text-gray-900 dark:text-white">🎯 深度模式</span>
+                            </div>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">高质量输出，严格验证</p>
+                        </div>
+                        <div class="absolute inset-0 rounded-lg border-2 border-blue-500 peer-checked:block hidden"></div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Advanced Settings (collapsed by default) -->
+            <details class="mb-4">
+                <summary class="text-sm font-medium text-gray-600 dark:text-gray-400 cursor-pointer hover:text-gray-900 dark:hover:text-white transition-colors flex items-center select-none">
+                    <svg class="w-4 h-4 mr-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                    高级设置
+                    <span class="ml-2 text-xs text-gray-400 dark:text-gray-500">（可选，使用推荐值则无需调整）</span>
+                </summary>
+                <div class="mt-3 p-4 bg-gray-50 dark:bg-slate-700/30 rounded-lg border border-gray-200 dark:border-slate-600">
+                    <div class="grid grid-cols-2 gap-6">
+                        <!-- Concurrency -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                并发数 <span id="concurrency-value" class="text-blue-600 dark:text-blue-400 font-semibold">2</span>
+                            </label>
+                            <input type="range" name="concurrency" id="input-concurrency" min="1" max="20" value="2"
+                                class="w-full h-2 bg-gray-200 dark:bg-slate-600 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                oninput="document.getElementById('concurrency-value').textContent = this.value; userChangedAdvancedSettings = true;">
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">同时生成的批次数，越大越快但占用越多</p>
+                        </div>
+                        <!-- Batch Size -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                每批数量 <span id="batch-size-value" class="text-blue-600 dark:text-blue-400 font-semibold">5</span>
+                            </label>
+                            <input type="range" name="batch_size" id="input-batch-size" min="1" max="50" value="5"
+                                class="w-full h-2 bg-gray-200 dark:bg-slate-600 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                oninput="document.getElementById('batch-size-value').textContent = this.value; userChangedAdvancedSettings = true;">
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">每批生成的题目数，越大单次生成越快但质量可能下降</p>
+                        </div>
+                    </div>
+                </div>
+            </details>
+
+            <div class="flex gap-4">
+                <button type="button" id="btn-preview" onclick="previewResume()"
+                    class="inline-flex items-center px-4 py-2.5 border border-gray-300 dark:border-slate-600 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                    </svg>
+                    固定解析
+                </button>
+                <button type="button" id="btn-ai-parse" onclick="aiParseResume()"
+                    class="inline-flex items-center px-4 py-2.5 border border-purple-300 dark:border-purple-600 text-sm font-medium rounded-lg text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                    </svg>
+                    AI 解析
+                </button>
+                <button type="button" id="btn-generate" onclick="generateQuestions()"
+                    class="inline-flex items-center px-4 py-2.5 border border-transparent text-sm font-medium rounded-lg text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-500/25 transition-all">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
+                    生成面试题
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Preview Section (Editable) -->
+    <div id="preview-section" class="bg-white dark:bg-slate-800 shadow-sm rounded-xl border border-gray-200 dark:border-slate-700 p-6 mb-6 hidden">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+                <svg class="w-5 h-5 mr-2 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                </svg>
+                解析预览
+                <span id="parse-method-badge" class="ml-2 text-xs px-2.5 py-0.5 rounded-full bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-gray-400"></span>
+            </h2>
+            <p class="text-sm text-gray-500 dark:text-gray-400">以下内容可手动编辑后再生成</p>
+        </div>
+        <div id="preview-content" class="space-y-4"></div>
+    </div>
+
+    <!-- Result Section -->
+    <div id="result-section" class="bg-white dark:bg-slate-800 shadow-sm rounded-xl border border-gray-200 dark:border-slate-700 p-6 hidden">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+            <svg class="w-5 h-5 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            生成完成
+        </h2>
+        <div id="result-content"></div>
+    </div>
+
+    <!-- Generation History Section -->
+    <div class="bg-white dark:bg-slate-800 shadow-sm rounded-xl border border-gray-200 dark:border-slate-700 p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+                <svg class="w-5 h-5 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                出题历史
+            </h2>
+            <div class="flex items-center space-x-2">
+                <label for="history-limit-select" class="text-sm text-gray-600 dark:text-gray-400">显示条数:</label>
+                <select id="history-limit-select" onchange="updateHistoryLimit()"
+                    class="px-2 py-1 text-sm border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="5">5条</option>
+                    <option value="10">10条</option>
+                    <option value="20">20条</option>
+                    <option value="50">50条</option>
+                </select>
+                <input type="text" id="history-search" placeholder="搜索岗位或文件名"
+                    class="px-3 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <button onclick="searchHistory()" class="px-3 py-1.5 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                    搜索
+                </button>
+            </div>
+        </div>
+        <div id="history-content" class="space-y-3">
+            <div class="text-center py-8 text-gray-500 dark:text-gray-400">
+                <svg class="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                正在加载历史记录...
+            </div>
+        </div>
+        <div id="history-load-more" class="mt-4 text-center hidden">
+            <button onclick="loadMoreHistory()" class="px-4 py-2 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline">
+                加载更多
+            </button>
+        </div>
+    </div>
+
+    <!-- Reconnect Banner (shown when a previous job is detected) -->
+    <div id="reconnect-banner" class="hidden mb-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800/30 rounded-xl p-4">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center">
+                <svg class="w-5 h-5 mr-2 text-yellow-600 dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                </svg>
+                <span class="text-sm text-yellow-800 dark:text-yellow-300">检测到正在进行的出题任务，是否重新连接？</span>
+            </div>
+            <div class="flex items-center space-x-2 ml-4">
+                <button id="btn-reconnect" onclick="reconnectToJob()"
+                    class="px-3 py-1.5 text-sm bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors">
+                    重新连接
+                </button>
+                <button onclick="dismissReconnectBanner()"
+                    class="px-3 py-1.5 text-sm text-yellow-700 dark:text-yellow-400 hover:bg-yellow-100 dark:hover:bg-yellow-900/30 rounded-lg transition-colors">
+                    忽略
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading" class="fixed inset-0 bg-gray-900/50 dark:bg-black/50 hidden items-center justify-center z-50">
+        <div class="bg-white dark:bg-slate-800 rounded-xl p-6 text-center max-w-md w-full border border-gray-200 dark:border-slate-700 shadow-xl">
+            <div id="loading-spinner" class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <p id="loading-text" class="text-gray-700 dark:text-gray-300">正在处理，请稍候...</p>
+            <div id="stream-progress" class="mt-4 hidden">
+                <div class="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2.5">
+                    <div id="stream-progress-bar" class="bg-gradient-to-r from-blue-500 to-indigo-500 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+                <p id="stream-counter" class="text-sm text-gray-500 dark:text-gray-400 mt-2">已生成 0 题</p>
+            </div>
+            <!-- Job Control Buttons -->
+            <div id="job-controls" class="mt-4 hidden flex justify-center gap-3">
+                <button id="btn-pause" onclick="togglePauseJob()"
+                    class="px-4 py-2 text-sm font-medium border border-yellow-400 dark:border-yellow-500 text-yellow-700 dark:text-yellow-300 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg hover:bg-yellow-100 dark:hover:bg-yellow-900/30 transition-colors">
+                    暂停
+                </button>
+                <button id="btn-terminate" onclick="terminateJob()"
+                    class="px-4 py-2 text-sm font-medium border border-red-300 dark:border-red-500 text-red-600 dark:text-red-400 bg-white dark:bg-slate-700 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                    终止
+                </button>
+            </div>
+            <!-- Debug Log Section (controlled by config) -->
+            <div id="debug-log-section" class="mt-4 hidden">
+                <button id="toggle-debug-log" onclick="toggleDebugLog()" class="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 underline">
+                    查看详细日志
+                </button>
+                <div id="debug-log-content" class="hidden mt-2 max-h-40 overflow-y-auto bg-gray-50 dark:bg-slate-900 rounded-lg p-2 text-left">
+                    <div id="debug-log-entries" class="text-xs text-gray-600 dark:text-gray-400 font-mono space-y-1"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Check if debug log is enabled (from backend config)
+const ENABLE_DEBUG_LOG = {{ get_settings().enable_generation_debug_log|tojson }};
+
+// --- Mode recommended defaults for advanced settings ---
+const MODE_DEFAULTS = {
+    fast:     { concurrency: 3, batch_size: 8 },
+    standard: { concurrency: 2, batch_size: 5 },
+    deep:     { concurrency: 1, batch_size: 5 }
+};
+
+// Track whether user has manually adjusted advanced settings
+let userChangedAdvancedSettings = false;
+
+// Current job state
+let currentJobId = null;
+let isJobPaused = false;
+
+// --- Safe sessionStorage wrappers (private browsing can throw) ---
+function safeSessionGet(key) {
+    try { return sessionStorage.getItem(key); } catch (e) { return null; }
+}
+function safeSessionSet(key, value) {
+    try { sessionStorage.setItem(key, value); } catch (e) { /* ignore */ }
+}
+function safeSessionRemove(key) {
+    try { sessionStorage.removeItem(key); } catch (e) { /* ignore */ }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function showLoading(text) {
+    document.getElementById('loading-text').textContent = text || '正在处理，请稍候...';
+    document.getElementById('loading').style.display = 'flex';
+}
+
+function hideLoading() {
+    document.getElementById('loading').style.display = 'none';
+}
+
+function toggleDebugLog() {
+    const content = document.getElementById('debug-log-content');
+    const button = document.getElementById('toggle-debug-log');
+    if (content.classList.contains('hidden')) {
+        content.classList.remove('hidden');
+        button.textContent = '隐藏详细日志';
+    } else {
+        content.classList.add('hidden');
+        button.textContent = '查看详细日志';
+    }
+}
+
+function addDebugLogEntry(stage, message) {
+    if (!ENABLE_DEBUG_LOG) return;
+
+    const logEntries = document.getElementById('debug-log-entries');
+    const timestamp = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+    const entry = document.createElement('div');
+    entry.className = 'text-xs';
+    entry.innerHTML = `<span class="text-gray-400">[${timestamp}]</span> <span class="text-blue-600 dark:text-blue-400">${stage}</span>: ${escapeHtml(message)}`;
+    logEntries.appendChild(entry);
+
+    // Auto-scroll to bottom
+    const logContent = document.getElementById('debug-log-content');
+    logContent.scrollTop = logContent.scrollHeight;
+}
+
+// --- Advanced Settings: sync sliders with mode defaults ---
+
+function syncAdvancedSettingsToMode(mode) {
+    if (userChangedAdvancedSettings) return; // respect user override
+
+    const defaults = MODE_DEFAULTS[mode] || MODE_DEFAULTS.standard;
+    const concurrencyInput = document.getElementById('input-concurrency');
+    const batchSizeInput = document.getElementById('input-batch-size');
+
+    concurrencyInput.value = defaults.concurrency;
+    document.getElementById('concurrency-value').textContent = defaults.concurrency;
+    batchSizeInput.value = defaults.batch_size;
+    document.getElementById('batch-size-value').textContent = defaults.batch_size;
+}
+
+// Listen for mode radio changes
+document.querySelectorAll('input[name="generation_mode"]').forEach(radio => {
+    radio.addEventListener('change', (e) => {
+        userChangedAdvancedSettings = false;
+        syncAdvancedSettingsToMode(e.target.value);
+    });
+});
+
+// --- Job control: pause / resume / terminate ---
+
+async function togglePauseJob() {
+    if (!currentJobId) return;
+
+    try {
+        const url = isJobPaused
+            ? `/api/resume/jobs/${currentJobId}/resume`
+            : `/api/resume/jobs/${currentJobId}/pause`;
+        const response = await fetch(url, { method: 'POST' });
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            console.error('Pause/resume failed:', err.detail || response.statusText);
+        }
+    } catch (err) {
+        console.error('Pause/resume failed:', err);
+    }
+}
+
+async function terminateJob() {
+    if (!currentJobId) return;
+    if (!confirm('终止后将保存当前已生成的题目，确定终止？')) return;
+
+    try {
+        const response = await fetch(`/api/resume/jobs/${currentJobId}/terminate`, { method: 'POST' });
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            console.error('Terminate failed:', err.detail || response.statusText);
+        }
+    } catch (err) {
+        console.error('Terminate failed:', err);
+    }
+}
+
+function showJobControls() {
+    document.getElementById('job-controls').classList.remove('hidden');
+}
+
+function hideJobControls() {
+    document.getElementById('job-controls').classList.add('hidden');
+}
+
+function updatePauseButton(paused) {
+    isJobPaused = paused;
+    const btn = document.getElementById('btn-pause');
+    if (paused) {
+        btn.textContent = '继续';
+        btn.className = 'px-4 py-2 text-sm font-medium border border-green-400 dark:border-green-500 text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-900/20 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors';
+    } else {
+        btn.textContent = '暂停';
+        btn.className = 'px-4 py-2 text-sm font-medium border border-yellow-400 dark:border-yellow-500 text-yellow-700 dark:text-yellow-300 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg hover:bg-yellow-100 dark:hover:bg-yellow-900/30 transition-colors';
+    }
+}
+
+// --- Reconnect support ---
+
+async function checkForExistingJob() {
+    const lastJobId = safeSessionGet('last_job_id');
+    if (!lastJobId) return;
+
+    try {
+        const response = await fetch(`/api/resume/jobs/${lastJobId}/status`);
+        if (!response.ok) {
+            safeSessionRemove('last_job_id');
+            return;
+        }
+        const data = await response.json();
+        if (data.status === 'running' || data.status === 'paused') {
+            // Show reconnect banner
+            document.getElementById('reconnect-banner').classList.remove('hidden');
+            // Store the job info for reconnect
+            window._pendingReconnectJobId = lastJobId;
+            window._pendingReconnectStatus = data;
+        } else {
+            // Job finished, clean up
+            safeSessionRemove('last_job_id');
+        }
+    } catch (err) {
+        // Network error or job gone — clean up silently
+        safeSessionRemove('last_job_id');
+    }
+}
+
+async function reconnectToJob() {
+    const jobId = window._pendingReconnectJobId;
+    if (!jobId) return;
+
+    dismissReconnectBanner();
+
+    // Prepare the loading overlay
+    currentJobId = jobId;
+    isJobPaused = window._pendingReconnectStatus?.status === 'paused';
+
+    const status = window._pendingReconnectStatus || {};
+    const completedCount = status.completed_count || 0;
+    const totalPlanned = status.total_planned || 0;
+
+    document.getElementById('loading-text').textContent = status.current_stage || '正在重新连接...';
+    document.getElementById('stream-progress').classList.remove('hidden');
+    document.getElementById('stream-progress-bar').style.width = totalPlanned > 0 ? Math.min(100, (completedCount / totalPlanned) * 100) + '%' : '0%';
+    document.getElementById('stream-counter').textContent = `已生成 ${completedCount} / ${totalPlanned || '?'} 题`;
+    document.getElementById('loading').style.display = 'flex';
+    showJobControls();
+    updatePauseButton(isJobPaused);
+
+    if (ENABLE_DEBUG_LOG) {
+        document.getElementById('debug-log-section').classList.remove('hidden');
+        document.getElementById('debug-log-entries').innerHTML = '';
+        document.getElementById('debug-log-content').classList.add('hidden');
+        document.getElementById('toggle-debug-log').textContent = '查看详细日志';
+    }
+
+    // Clear previous result
+    document.getElementById('result-section').classList.add('hidden');
+    document.getElementById('result-content').innerHTML = '';
+
+    // Track user scroll state
+    let userHasScrolled = false;
+    const scrollHandler = () => { userHasScrolled = true; };
+    window.addEventListener('scroll', scrollHandler);
+
+    let accumulatedQuestions = [];
+
+    try {
+        const response = await fetch(`/api/resume/jobs/${jobId}/stream`);
+        if (!response.ok) {
+            throw new Error('重新连接失败');
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n\n');
+            buffer = lines.pop() || '';
+
+            for (const line of lines) {
+                if (!line.startsWith('data: ')) continue;
+                const jsonStr = line.slice(6);
+                try {
+                    const event = JSON.parse(jsonStr);
+                    processSSEEvent(event, accumulatedQuestions, userHasScrolled, null, scrollHandler);
+                } catch (e) {
+                    console.warn('Failed to parse SSE event:', e);
+                }
+            }
+        }
+
+        window.removeEventListener('scroll', scrollHandler);
+        // Only perform fallback cleanup if processSSEEvent didn't already handle completion/error
+        if (currentJobId) {
+            hideLoading();
+            hideJobControls();
+            safeSessionRemove('last_job_id');
+            currentJobId = null;
+            if (accumulatedQuestions.length > 0) {
+                showCompleteSummary({ questions: accumulatedQuestions, questions_saved: accumulatedQuestions.length });
+            }
+        }
+    } catch (err) {
+        window.removeEventListener('scroll', scrollHandler);
+        alert('重新连接失败: ' + err.message);
+        hideLoading();
+        hideJobControls();
+        safeSessionRemove('last_job_id');
+        currentJobId = null;
+    }
+}
+
+function dismissReconnectBanner() {
+    document.getElementById('reconnect-banner').classList.add('hidden');
+    safeSessionRemove('last_job_id');
+    window._pendingReconnectJobId = null;
+    window._pendingReconnectStatus = null;
+}
+
+// --- SSE Event Processor (shared by generate and reconnect) ---
+
+function processSSEEvent(event, accumulatedQuestions, userHasScrolled, targetCount, scrollHandler) {
+    if (event.type === 'job_started') {
+        currentJobId = event.job_id;
+        safeSessionSet('last_job_id', event.job_id);
+        showJobControls();
+        updatePauseButton(false);
+        addDebugLogEntry('job', `任务已创建 (ID: ${event.job_id})`);
+    } else if (event.type === 'stage') {
+        // Detect pause/resume stage events from backend
+        if (event.stage === 'paused') {
+            updatePauseButton(true);
+        } else if (event.stage === 'resumed') {
+            updatePauseButton(false);
+        }
+        document.getElementById('loading-text').textContent = event.message;
+        addDebugLogEntry(event.stage, event.message);
+    } else if (event.type === 'progress_update') {
+        // Explicit progress update from backend
+        const completed = event.completed_count || 0;
+        const total = event.total_planned || targetCount || 0;
+        const pct = total > 0 ? Math.min(100, (completed / total) * 100) : 0;
+        document.getElementById('stream-progress-bar').style.width = pct + '%';
+        document.getElementById('stream-counter').textContent = `已生成 ${completed} / ${total} 题`;
+        if (event.current_stage) {
+            document.getElementById('loading-text').textContent = event.current_stage;
+        }
+    } else if (event.type === 'question') {
+        // Only display questions up to target count if target is specified
+        if (!targetCount || accumulatedQuestions.length < targetCount) {
+            accumulatedQuestions.push(event.question);
+
+            // Update progress bar
+            const displayTotal = targetCount || accumulatedQuestions.length;
+            const progress = targetCount ? Math.min(100, (accumulatedQuestions.length / targetCount) * 100) : 0;
+            if (targetCount) {
+                document.getElementById('stream-progress-bar').style.width = progress + '%';
+            }
+            document.getElementById('stream-counter').textContent = `已生成 ${accumulatedQuestions.length}${targetCount ? ' / ' + targetCount : ''} 题`;
+
+            // Append question to result section immediately (streaming display)
+            appendQuestionToPreview(event.question, accumulatedQuestions.length, userHasScrolled);
+        }
+    } else if (event.type === 'complete') {
+        window.removeEventListener('scroll', scrollHandler);
+        hideLoading();
+        hideJobControls();
+        safeSessionRemove('last_job_id');
+        currentJobId = null;
+        showCompleteSummary({
+            questions: accumulatedQuestions,
+            questions_saved: event.questions_saved,
+            bank_name: event.bank_name,
+            bank_id: event.bank_id,
+        });
+    } else if (event.type === 'error') {
+        window.removeEventListener('scroll', scrollHandler);
+        alert('生成失败: ' + event.message);
+        hideLoading();
+        hideJobControls();
+        safeSessionRemove('last_job_id');
+        currentJobId = null;
+    }
+}
+
+// --- Main generation function ---
+
+async function previewResume() {
+    const form = document.getElementById('resume-form');
+    const formData = new FormData(form);
+
+    showLoading('正在解析简历...');
+
+    try {
+        const response = await fetch('/api/resume/upload', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            alert('预览失败: ' + (error.detail || '未知错误'));
+            return;
+        }
+
+        const data = await response.json();
+        showPreview(data, '固定解析');
+    } catch (err) {
+        alert('预览失败: ' + err.message);
+    } finally {
+        hideLoading();
+    }
+}
+
+async function aiParseResume() {
+    const form = document.getElementById('resume-form');
+    const fileInput = form.querySelector('input[name="file"]');
+
+    if (!fileInput.files.length) {
+        alert('请先选择简历文件');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+
+    showLoading('AI 正在智能解析简历...');
+
+    try {
+        const response = await fetch('/api/resume/ai-parse', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            alert('AI 解析失败: ' + (error.detail || '未知错误'));
+            return;
+        }
+
+        const data = await response.json();
+        showPreview(data, 'AI 解析');
+    } catch (err) {
+        alert('AI 解析失败: ' + err.message);
+    } finally {
+        hideLoading();
+    }
+}
+
+async function generateQuestions() {
+    const form = document.getElementById('resume-form');
+    const formData = new FormData(form);
+
+    // Validate: at least file or job_title must be provided
+    const hasFile = formData.get('file') && formData.get('file').size > 0;
+    const hasJobTitle = formData.get('job_title') && formData.get('job_title').trim();
+
+    // Check if we have cached resume text from history (stored in a hidden element or variable)
+    const cachedResumeText = window.cachedResumeText || null;
+
+    if (!hasFile && !hasJobTitle && !cachedResumeText) {
+        alert('请至少上传简历文件或填写岗位名称');
+        return;
+    }
+
+    // If no file is uploaded but we have cached resume text, create a virtual file
+    if (!hasFile && cachedResumeText) {
+        const blob = new Blob([cachedResumeText], { type: 'text/plain' });
+        // Force .txt extension to avoid PDF parsing errors
+        const virtualFile = new File([blob], 'cached_resume.txt', { type: 'text/plain' });
+        formData.set('file', virtualFile);
+    }
+
+    const generationMode = formData.get('generation_mode') || 'standard';
+
+    const sections = collectEditedSections();
+    if (sections) {
+        formData.append('edited_sections', JSON.stringify(sections));
+    }
+
+    document.getElementById('loading-text').textContent = '正在生成面试题...';
+    document.getElementById('stream-progress').classList.remove('hidden');
+    document.getElementById('stream-progress-bar').style.width = '0%';
+    document.getElementById('stream-counter').textContent = '已生成 0 题';
+    document.getElementById('loading').style.display = 'flex';
+
+    // Show debug log section if enabled
+    if (ENABLE_DEBUG_LOG) {
+        document.getElementById('debug-log-section').classList.remove('hidden');
+        document.getElementById('debug-log-entries').innerHTML = '';
+        document.getElementById('debug-log-content').classList.add('hidden');
+        document.getElementById('toggle-debug-log').textContent = '查看详细日志';
+    }
+
+    document.getElementById('result-section').classList.add('hidden');
+
+    // Clear previous results
+    const resultContent = document.getElementById('result-content');
+    resultContent.innerHTML = '';
+
+    // Reset job state
+    currentJobId = null;
+    isJobPaused = false;
+
+    const params = new URLSearchParams();
+    params.append('job_title', formData.get('job_title'));
+    params.append('jd_text', formData.get('jd_text') || '');
+    params.append('question_count', formData.get('question_count') || '10');
+    params.append('bank_name', formData.get('bank_name') || '');
+    params.append('generation_mode', generationMode);
+
+    // Add advanced settings (concurrency / batch_size)
+    const concurrencyVal = parseInt(document.getElementById('input-concurrency').value) || 0;
+    const batchSizeVal = parseInt(document.getElementById('input-batch-size').value) || 0;
+    params.append('concurrency', concurrencyVal);
+    params.append('batch_size', batchSizeVal);
+
+    if (sections) {
+        params.append('edited_sections', JSON.stringify(sections));
+    }
+
+    let accumulatedQuestions = [];
+    let targetCount = parseInt(formData.get('question_count')) || 10;
+
+    // Track user scroll state
+    let userHasScrolled = false;
+    const scrollHandler = () => { userHasScrolled = true; };
+    window.addEventListener('scroll', scrollHandler);
+
+    try {
+        const response = await fetch('/api/resume/generate-stream?' + params.toString(), {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            alert('生成失败: ' + (error.detail || '未知错误'));
+            window.removeEventListener('scroll', scrollHandler);
+            document.getElementById('loading').style.display = 'none';
+            hideJobControls();
+            return;
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n\n');
+            buffer = lines.pop() || '';
+
+            for (const line of lines) {
+                if (!line.startsWith('data: ')) continue;
+                const jsonStr = line.slice(6);
+                try {
+                    const event = JSON.parse(jsonStr);
+                    processSSEEvent(event, accumulatedQuestions, userHasScrolled, targetCount, scrollHandler);
+                } catch (e) {
+                    console.warn('Failed to parse SSE event:', e);
+                }
+            }
+        }
+
+        window.removeEventListener('scroll', scrollHandler);
+        // Only perform fallback cleanup if processSSEEvent didn't already handle completion/error
+        if (currentJobId) {
+            document.getElementById('loading').style.display = 'none';
+            hideJobControls();
+            safeSessionRemove('last_job_id');
+            currentJobId = null;
+            if (accumulatedQuestions.length > 0) {
+                showCompleteSummary({ questions: accumulatedQuestions, questions_saved: accumulatedQuestions.length });
+            }
+        }
+    } catch (err) {
+        window.removeEventListener('scroll', scrollHandler);
+        alert('生成失败: ' + err.message);
+        document.getElementById('loading').style.display = 'none';
+        hideJobControls();
+        safeSessionRemove('last_job_id');
+        currentJobId = null;
+    }
+}
+
+function appendQuestionToPreview(question, index, userHasScrolled) {
+    const section = document.getElementById('result-section');
+    const content = document.getElementById('result-content');
+
+    // Show result section if hidden
+    section.classList.remove('hidden');
+
+    // Create question card
+    const diffClass = question.difficulty === 'easy' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
+                      question.difficulty === 'hard' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
+                      'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300';
+
+    const questionDiv = document.createElement('div');
+    questionDiv.className = 'border border-gray-200 dark:border-slate-700 rounded-lg p-4 mb-3 animate-fade-in';
+    questionDiv.innerHTML = `
+        <div class="flex justify-between items-start mb-2">
+            <h3 class="font-medium text-gray-900 dark:text-white">${index}. ${escapeHtml(question.title || '')}</h3>
+            <span class="text-xs px-2.5 py-0.5 rounded-full ${diffClass}">${question.difficulty || 'medium'}</span>
+        </div>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">分类: ${escapeHtml(question.category || '')}</p>
+        ${question.expected_answer ? `
+            <details class="mt-2">
+                <summary class="text-sm text-blue-600 dark:text-blue-400 cursor-pointer hover:text-blue-700 dark:hover:text-blue-300">查看参考答案</summary>
+                <pre class="mt-1 text-sm text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-slate-700/50 rounded-lg p-3 whitespace-pre-wrap">${escapeHtml(question.expected_answer)}</pre>
+            </details>
+        ` : ''}
+    `;
+
+    content.appendChild(questionDiv);
+
+    // Auto-scroll to bottom if user hasn't manually scrolled
+    if (!userHasScrolled) {
+        questionDiv.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
+}
+
+function showCompleteSummary(data) {
+    const content = document.getElementById('result-content');
+
+    // Prepend summary banner
+    const summaryDiv = document.createElement('div');
+    summaryDiv.className = 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/30 rounded-lg p-4 mb-4';
+    summaryDiv.innerHTML = `
+        <p class="text-green-700 dark:text-green-300">
+            ✅ 已生成 <strong>${data.questions_saved}</strong> 道面试题，保存至题库:
+            <a href="/banks" class="underline hover:text-green-600 dark:hover:text-green-200">${escapeHtml(data.bank_name)}</a>
+        </p>
+    `;
+    content.insertBefore(summaryDiv, content.firstChild);
+
+    // Add link to view bank
+    const linkDiv = document.createElement('div');
+    linkDiv.className = 'mt-4';
+    linkDiv.innerHTML = '<a href="/banks" class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline">查看题库 →</a>';
+    content.appendChild(linkDiv);
+
+    // Reload history after successful generation
+    loadHistory();
+}
+
+function showPreview(data, method) {
+    const section = document.getElementById('preview-section');
+    const content = document.getElementById('preview-content');
+    const badge = document.getElementById('parse-method-badge');
+
+    badge.textContent = method || '固定解析';
+
+    let html = '<div class="bg-gray-50 dark:bg-slate-700/50 rounded-lg p-4 mb-4">';
+    html += '<p class="text-sm text-gray-500 dark:text-gray-400">文件: ' + escapeHtml(data.filename) + ' (' + data.text_length + ' 字符)</p>';
+    html += '</div>';
+
+    const fields = [
+        {key: 'basic_info', label: '基本信息', placeholder: '姓名、联系方式、所在城市...', rows: 2},
+        {key: 'summary', label: '个人简介', placeholder: '个人概述、求职意向...', rows: 2},
+        {key: 'education', label: '教育经历', placeholder: '学校、专业、学位、时间...', rows: 3},
+        {key: 'skills', label: '专业技能', placeholder: '技术栈、工具、方法论...', rows: 3},
+        {key: 'experience', label: '工作经验', placeholder: '公司、职位、职责、成就...', rows: 4},
+        {key: 'projects', label: '项目经历', placeholder: '项目名称、职责、成果...', rows: 4},
+        {key: 'other', label: '其他信息', placeholder: '证书、获奖、语言能力...', rows: 2},
+    ];
+
+    for (const f of fields) {
+        const value = (data.sections && data.sections[f.key]) || '';
+        html += '<div>';
+        html += '<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">' + f.label + '</label>';
+        html += '<textarea data-section="' + f.key + '" rows="' + f.rows + '" placeholder="' + f.placeholder + '"';
+        html += ' class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white">';
+        html += escapeHtml(value.trim());
+        html += '</textarea>';
+        html += '</div>';
+    }
+
+    content.innerHTML = html;
+    section.classList.remove('hidden');
+}
+
+function collectEditedSections() {
+    const textareas = document.querySelectorAll('#preview-content textarea[data-section]');
+    if (!textareas.length) return null;
+
+    const sections = {};
+    textareas.forEach(function(ta) {
+        sections[ta.dataset.section] = ta.value;
+    });
+    return sections;
+}
+
+function showResult(data) {
+    const section = document.getElementById('result-section');
+    const content = document.getElementById('result-content');
+
+    let html = '<div class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/30 rounded-lg p-4 mb-4">';
+    html += '<p class="text-green-700 dark:text-green-300">';
+    html += '已生成 <strong>' + data.questions_saved + '</strong> 道面试题，';
+    html += '保存至题库: <a href="/banks" class="underline hover:text-green-600 dark:hover:text-green-200">' + escapeHtml(data.bank_name) + '</a>';
+    html += '</p></div>';
+
+    html += '<div class="space-y-3">';
+    data.questions.forEach(function(q, i) {
+        const diffClass = q.difficulty === 'easy' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
+                          q.difficulty === 'hard' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
+                          'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300';
+        html += '<div class="border border-gray-200 dark:border-slate-700 rounded-lg p-4">';
+        html += '<div class="flex justify-between items-start mb-2">';
+        html += '<h3 class="font-medium text-gray-900 dark:text-white">' + (i + 1) + '. ' + escapeHtml(q.title || '') + '</h3>';
+        html += '<span class="text-xs px-2.5 py-0.5 rounded-full ' + diffClass + '">' + (q.difficulty || 'medium') + '</span>';
+        html += '</div>';
+        html += '<p class="text-sm text-gray-500 dark:text-gray-400 mb-1">分类: ' + escapeHtml(q.category || '') + '</p>';
+        if (q.expected_answer) {
+            html += '<details class="mt-2"><summary class="text-sm text-blue-600 dark:text-blue-400 cursor-pointer hover:text-blue-700 dark:hover:text-blue-300">查看参考答案</summary>';
+            html += '<pre class="mt-1 text-sm text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-slate-700/50 rounded-lg p-3 whitespace-pre-wrap">' + escapeHtml(q.expected_answer) + '</pre>';
+            html += '</details>';
+        }
+        html += '</div>';
+    });
+    html += '</div>';
+    html += '<div class="mt-4"><a href="/banks" class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline">查看题库 →</a></div>';
+
+    content.innerHTML = html;
+    section.classList.remove('hidden');
+
+    // Reload history after successful generation
+    loadHistory();
+}
+
+// History functions
+let historyOffset = 0;
+let HISTORY_LIMIT = 5; // Default: 5 items (user configurable)
+
+// Load history limit from localStorage
+function loadHistoryLimitSetting() {
+    const saved = localStorage.getItem('historyLimit');
+    if (saved) {
+        const parsed = parseInt(saved);
+        if (parsed >= 1 && parsed <= 50) {
+            HISTORY_LIMIT = parsed;
+        }
+    }
+    return HISTORY_LIMIT;
+}
+
+// Save history limit to localStorage
+function saveHistoryLimitSetting(limit) {
+    localStorage.setItem('historyLimit', limit.toString());
+    HISTORY_LIMIT = limit;
+}
+
+async function loadHistory(reset = true) {
+    if (reset) {
+        historyOffset = 0;
+    }
+
+    const search = document.getElementById('history-search').value;
+    const url = `/api/resume/history?limit=${HISTORY_LIMIT}&offset=${historyOffset}&search=${encodeURIComponent(search)}`;
+
+    try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Failed to load history');
+
+        const data = await response.json();
+        const container = document.getElementById('history-content');
+
+        if (reset) {
+            container.innerHTML = '';
+        }
+
+        if (data.items.length === 0 && historyOffset === 0) {
+            container.innerHTML = `
+                <div class="text-center py-8 text-gray-500 dark:text-gray-400">
+                    <svg class="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <p>暂无出题历史</p>
+                </div>
+            `;
+            document.getElementById('history-load-more').classList.add('hidden');
+            return;
+        }
+
+        data.items.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'border border-gray-200 dark:border-slate-700 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors';
+
+            const timeAgo = getRelativeTime(item.created_at);
+            const modeLabel = item.generation_mode === 'resume_only' ? '仅简历' :
+                             item.generation_mode === 'job_only' ? '仅岗位' : '简历+岗位';
+
+            div.innerHTML = `
+                <div class="flex justify-between items-start mb-2">
+                    <div class="flex-1">
+                        <h3 class="font-medium text-gray-900 dark:text-white">${escapeHtml(item.job_title)}</h3>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300">${modeLabel}</span>
+                            ${item.resume_filename ? '<span class="ml-2">📄 ' + escapeHtml(item.resume_filename) + '</span>' : ''}
+                            <span class="ml-2">${timeAgo}</span>
+                        </p>
+                    </div>
+                    <span class="text-sm font-medium text-blue-600 dark:text-blue-400">${item.question_count} 题</span>
+                </div>
+                <div class="flex items-center space-x-2 mt-3">
+                    <button onclick="reuseHistory(${item.id})" class="text-sm px-3 py-1.5 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors">
+                        复用参数
+                    </button>
+                    ${item.bank_id ? `<a href="/banks/${item.bank_id}" class="text-sm px-3 py-1.5 bg-gray-50 text-gray-700 dark:bg-slate-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-600 transition-colors">查看题库</a>` : ''}
+                    <button onclick="deleteHistory(${item.id})" class="text-sm px-3 py-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
+                        删除
+                    </button>
+                </div>
+            `;
+
+            container.appendChild(div);
+        });
+
+        // Show/hide "Load More" button
+        const loadMoreBtn = document.getElementById('history-load-more');
+        if (data.items.length === HISTORY_LIMIT && (historyOffset + HISTORY_LIMIT) < data.total) {
+            loadMoreBtn.classList.remove('hidden');
+        } else {
+            loadMoreBtn.classList.add('hidden');
+        }
+
+        historyOffset += data.items.length;
+    } catch (err) {
+        console.error('Failed to load history:', err);
+        document.getElementById('history-content').innerHTML = `
+            <div class="text-center py-8 text-red-500 dark:text-red-400">
+                加载历史记录失败
+            </div>
+        `;
+    }
+}
+
+function loadMoreHistory() {
+    loadHistory(false);
+}
+
+function searchHistory() {
+    loadHistory(true);
+}
+
+function updateHistoryLimit() {
+    const select = document.getElementById('history-limit-select');
+    const newLimit = parseInt(select.value);
+    saveHistoryLimitSetting(newLimit);
+    loadHistory(true);
+}
+
+async function reuseHistory(historyId) {
+    try {
+        const response = await fetch(`/api/resume/history/${historyId}`);
+        if (!response.ok) throw new Error('Failed to fetch history detail');
+
+        const item = await response.json();
+
+        // Fill form with history data
+        document.querySelector('input[name="job_title"]').value = item.job_title;
+        document.querySelector('textarea[name="jd_text"]').value = item.jd_text || '';
+
+        // If resume_text is cached in history, parse it using backend API
+        if (item.resume_text && item.resume_text.trim()) {
+            showLoading('正在解析历史简历...');
+
+            try {
+                // Send resume text to backend for parsing
+                const parseResponse = await fetch('/api/resume/parse-text', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        text: item.resume_text,
+                        filename: item.resume_filename || 'cached_resume.txt'
+                    })
+                });
+
+                if (parseResponse.ok) {
+                    const parseData = await parseResponse.json();
+
+                    // Store cached resume text globally for generateQuestions()
+                    window.cachedResumeText = item.resume_text;
+                    window.cachedResumeFilename = item.resume_filename || 'cached_resume.txt';
+
+                    // Show parsed sections in editable preview
+                    showPreview({
+                        filename: item.resume_filename || '历史简历缓存',
+                        text_length: item.resume_text.length,
+                        sections: parseData.sections,
+                        parse_method: 'cached'
+                    }, '历史缓存（已解析）');
+
+                    // Display info message
+                    const previewSection = document.getElementById('preview-section');
+                    const infoDiv = document.createElement('div');
+                    infoDiv.className = 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/30 rounded-lg p-3 mb-3';
+                    infoDiv.innerHTML = `
+                        <p class="text-sm text-blue-800 dark:text-blue-300">
+                            ℹ️ 已自动加载并解析上次的简历内容，您可以在下方直接编辑各字段。如需使用新简历，请重新上传文件。
+                        </p>
+                    `;
+                    previewSection.insertBefore(infoDiv, previewSection.firstChild.nextSibling);
+                } else {
+                    throw new Error('Parse failed');
+                }
+            } catch (error) {
+                console.error('Failed to parse cached resume:', error);
+
+                // Store cached resume text even on parse failure
+                window.cachedResumeText = item.resume_text;
+                window.cachedResumeFilename = item.resume_filename || 'cached_resume.txt';
+
+                // Fallback: show raw text split into summary field
+                showPreview({
+                    filename: item.resume_filename || '历史简历缓存',
+                    text_length: item.resume_text.length,
+                    sections: {
+                        basic_info: '',
+                        summary: item.resume_text,
+                        education: '',
+                        skills: '',
+                        experience: '',
+                        projects: '',
+                        other: ''
+                    },
+                    parse_method: 'cached'
+                }, '历史缓存（原始文本）');
+
+                const previewSection = document.getElementById('preview-section');
+                const infoDiv = document.createElement('div');
+                infoDiv.className = 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800/30 rounded-lg p-3 mb-3';
+                infoDiv.innerHTML = `
+                    <p class="text-sm text-yellow-800 dark:text-yellow-300">
+                        ⚠️ 解析失败，已加载原始简历文本，您可以手动整理各字段。
+                    </p>
+                `;
+                previewSection.insertBefore(infoDiv, previewSection.firstChild.nextSibling);
+            } finally {
+                hideLoading();
+            }
+        } else if (item.resume_filename) {
+            // No cached resume text, prompt user to re-upload
+            const infoDiv = document.createElement('div');
+            infoDiv.className = 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800/30 rounded-lg p-3 mb-3';
+            infoDiv.innerHTML = `
+                <p class="text-sm text-yellow-800 dark:text-yellow-300">
+                    ⚠️ 上次使用了文件"${escapeHtml(item.resume_filename)}"，但未缓存解析结果。请重新上传简历文件。
+                </p>
+            `;
+            document.querySelector('.max-w-4xl').insertBefore(infoDiv, document.getElementById('resume-form').parentElement);
+            setTimeout(() => infoDiv.remove(), 5000);
+        }
+
+        // Scroll to form top and highlight
+        const form = document.getElementById('resume-form');
+        form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        form.classList.add('ring-2', 'ring-blue-500', 'ring-opacity-50');
+        setTimeout(() => {
+            form.classList.remove('ring-2', 'ring-blue-500', 'ring-opacity-50');
+        }, 2000);
+    } catch (err) {
+        alert('加载历史记录失败: ' + err.message);
+    }
+}
+
+async function deleteHistory(historyId) {
+    if (!confirm('确定删除此历史记录吗？（不会删除题库）')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/resume/history/${historyId}`, {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) throw new Error('Failed to delete history');
+
+        loadHistory(true);
+    } catch (err) {
+        alert('删除失败: ' + err.message);
+    }
+}
+
+function getRelativeTime(timestamp) {
+    const now = new Date();
+    const then = new Date(timestamp);
+    const diff = Math.floor((now - then) / 1000);
+
+    if (diff < 60) return '刚刚';
+    if (diff < 3600) return Math.floor(diff / 60) + ' 分钟前';
+    if (diff < 86400) return Math.floor(diff / 3600) + ' 小时前';
+    if (diff < 2592000) return Math.floor(diff / 86400) + ' 天前';
+    return then.toLocaleDateString('zh-CN');
+}
+
+// Load history on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Load saved history limit setting
+    const savedLimit = loadHistoryLimitSetting();
+    document.getElementById('history-limit-select').value = savedLimit.toString();
+
+    loadHistory();
+
+    // Add enter key support for search
+    document.getElementById('history-search').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            searchHistory();
+        }
+    });
+
+    // Sync advanced settings sliders to current mode defaults (standard)
+    syncAdvancedSettingsToMode('standard');
+
+    // Check for an existing generation job (reconnect support on page refresh)
+    checkForExistingJob();
+});
+</script>
+{% endblock %}
