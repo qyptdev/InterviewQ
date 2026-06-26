@@ -23,7 +23,7 @@ htmlcov/
 tailwindcss
 
 # === Build Artifacts ===
-app/static/css/tailwind.css
+# app/static/css/tailwind.css
 
 # === Tool Configs (personal / local) ===
 .playwright-cli/
