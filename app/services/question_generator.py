@@ -883,14 +883,11 @@ async def run_generation_job(
 async def stream_job_events(job: GenerationJob) -> AsyncGenerator[dict, None]:
     """Yield all past events and then stream new ones for a job.
 
-    Used for reconnect: replays accumulated past_events first, then
-    yields from the event_queue until the job is finished.
-
-    After replaying past_events, the event_queue is drained to discard
-    any events that were already recorded in past_events (prevents
-    duplicate delivery on reconnect when the previous consumer
-    disconnected mid-stream).
+    Includes periodic SSE heartbeat events to keep the connection alive
+    during long LLM calls, preventing proxy/browser timeout.
     """
+    import time
+
     # Replay past events
     for event in job.past_events:
         yield event
@@ -899,15 +896,18 @@ async def stream_job_events(job: GenerationJob) -> AsyncGenerator[dict, None]:
     if job.status in ("completed", "terminated", "error"):
         return
 
-    # Drain stale items from the queue — these are duplicates of
-    # events we already replayed from past_events.
+    # Drain stale items from the queue
     while not job.event_queue.empty():
         try:
             job.event_queue.get_nowait()
         except asyncio.QueueEmpty:
             break
 
-    # Stream only genuinely new events
+    # Stream new events with heartbeat
+    from app.config import get_settings
+    heartbeat_interval = get_settings().sse_heartbeat_interval
+    last_event_time = time.monotonic()
+
     while True:
         try:
             event = await asyncio.wait_for(job.event_queue.get(), timeout=1.0)
@@ -915,8 +915,14 @@ async def stream_job_events(job: GenerationJob) -> AsyncGenerator[dict, None]:
             # Check if job finished while waiting
             if job.status in ("completed", "terminated", "error"):
                 break
+            # Emit heartbeat if enough time has passed
+            now = time.monotonic()
+            if now - last_event_time >= heartbeat_interval:
+                yield {"type": "heartbeat", "timestamp": time.time()}
+                last_event_time = now
             continue
         yield event
+        last_event_time = time.monotonic()
         # If we got a complete or error event, stop
         if event.get("type") in ("complete", "error"):
             break

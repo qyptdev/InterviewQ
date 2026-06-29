@@ -5,7 +5,6 @@ from typing import Optional
 
 from app.rag.bm25_index import BM25Index
 from app.rag.raptor_tree import RaptorTree
-from app.rag.embedder import get_embedding_client
 
 logger = logging.getLogger(__name__)
 
@@ -34,10 +33,15 @@ class HybridRetriever:
 
         # Generate embeddings (if embedding client available)
         try:
+            from app.rag.embedder import get_embedding_client
             embedder = get_embedding_client()
-            texts = [doc.get("content", "") for doc in documents]
-            self.embeddings = await embedder.embed(texts)
-            logger.info(f"Embeddings generated for {len(documents)} documents")
+            if embedder is None:
+                logger.info("Embedding skipped: embedding_enabled=False")
+                self.embeddings = None
+            else:
+                texts = [doc.get("content", "") for doc in documents]
+                self.embeddings = await embedder.embed(texts)
+                logger.info(f"Embeddings generated for {len(documents)} documents")
         except Exception as e:
             logger.warning(f"Embedding generation failed: {e}")
             self.embeddings = None
@@ -75,7 +79,11 @@ class HybridRetriever:
             return []
 
         try:
+            from app.rag.embedder import get_embedding_client
             embedder = get_embedding_client()
+            if embedder is None:
+                logger.info("Vector search skipped: embedding_enabled=False")
+                return []
             query_embedding = await embedder.embed_single(query)
 
             # Calculate cosine similarities

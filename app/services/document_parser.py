@@ -30,6 +30,11 @@ def parse_markdown(content: str) -> str:
 def parse_pdf(content: bytes) -> str:
     """Parse PDF file content, extracting plain text.
 
+    Uses subprocess isolation to prevent fitz (PyMuPDF) C library from
+    corrupting the parent process heap allocator.  The fitz import and
+    all PDF processing happen inside a child process; the parent only
+    receives the extracted text back.
+
     Args:
         content: Raw PDF file bytes.
 
@@ -39,27 +44,76 @@ def parse_pdf(content: bytes) -> str:
     Raises:
         ValueError: If PDF parsing fails.
     """
-    try:
-        import fitz  # PyMuPDF
-    except ImportError:
-        raise ValueError("PyMuPDF 未安装，请运行: pip install PyMuPDF")
+    import sys
+    import subprocess
+
+    # Inline script that the child process will execute.
+    # Uses subprocess.run() instead of multiprocessing.Process to avoid
+    # pickling issues with the 'spawn' context (local functions can't be pickled).
+    # PDF bytes are passed via stdin; text output via stdout with a simple
+    # length-prefixed protocol to safely handle arbitrary content.
+    _WORKER_SCRIPT = r"""
+import sys, struct
+try:
+    import fitz  # PyMuPDF — only imported in child process
+    data = sys.stdin.buffer.read()
+    doc = fitz.open(stream=data, filetype="pdf")
+    text_parts = []
+    for page in doc:
+        page_text = page.get_text()
+        if page_text.strip():
+            text_parts.append(page_text.strip())
+    doc.close()
+    result_text = "\n\n".join(text_parts) if text_parts else ""
+    encoded = result_text.encode("utf-8")
+    # Protocol: 4-byte big-endian length + UTF-8 bytes (success)
+    sys.stdout.buffer.write(struct.pack(">I", len(encoded)) + encoded)
+except ImportError:
+    msg = "PyMuPDF not installed".encode("utf-8")
+    # Protocol: 4-byte zero marker + error message
+    sys.stdout.buffer.write(b"\x00\x00\x00\x00" + msg)
+except Exception as e:
+    msg = str(e).encode("utf-8")
+    sys.stdout.buffer.write(b"\x00\x00\x00\x00" + msg)
+"""
 
     try:
-        doc = fitz.open(stream=content, filetype="pdf")
-        text_parts = []
-        for page in doc:
-            page_text = page.get_text()
-            if page_text.strip():
-                text_parts.append(page_text.strip())
-        doc.close()
+        result = subprocess.run(
+            [sys.executable, "-c", _WORKER_SCRIPT],
+            input=content,
+            capture_output=True,
+            timeout=30,
+        )
 
-        if not text_parts:
+        if result.returncode != 0:
+            stderr = result.stderr.decode("utf-8", errors="replace").strip()
+            raise ValueError(f"PDF 解析子进程异常: {stderr[:500]}")
+
+        stdout = result.stdout
+        if len(stdout) < 4:
             logger.warning("PDF file contains no extractable text")
             return ""
 
-        return "\n\n".join(text_parts)
+        # Read 4-byte length header
+        import struct
+        length = struct.unpack(">I", stdout[:4])[0]
+
+        if length == 0:
+            # Error marker — remaining bytes are the error message
+            error_msg = stdout[4:].decode("utf-8", errors="replace")
+            raise ValueError(f"PDF 解析失败: {error_msg}")
+
+        text = stdout[4:4 + length].decode("utf-8", errors="replace")
+        if not text:
+            logger.warning("PDF file contains no extractable text")
+        return text
+
+    except subprocess.TimeoutExpired:
+        raise ValueError("PDF 解析超时（30秒）")
+    except ValueError:
+        raise
     except Exception as e:
-        logger.error(f"PDF parsing failed: {e}")
+        logger.error(f"PDF parsing subprocess failed: {e}")
         raise ValueError(f"PDF 解析失败: {str(e)}")
 
 

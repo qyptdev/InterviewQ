@@ -35,9 +35,19 @@ class Settings(BaseSettings):
     llm_embedding_api_key: str = ""
     llm_embedding_model: str = ""
 
+    # Feature toggles (default False to prevent OOM on low-memory systems)
+    embedding_enabled: bool = False
+    rag_enabled: bool = False
+
     # LLM Parameters
     llm_temperature: float = 0.7
     llm_max_tokens: int = 2048
+
+    # LLM Timeouts (split by phase)
+    llm_connect_timeout: float = 10.0
+    llm_read_timeout: float = 300.0
+    llm_write_timeout: float = 30.0
+    llm_pool_timeout: float = 60.0
 
     # Rate Limiting
     rate_limit_enabled: bool = False
@@ -45,6 +55,15 @@ class Settings(BaseSettings):
 
     # Question Generation - Debug Logging
     enable_generation_debug_log: bool = True
+
+    # Memory & streaming safety limits
+    max_stream_collect_chars: int = 500_000
+
+    # SSE heartbeat interval (seconds) — prevents proxy/browser timeout
+    sse_heartbeat_interval: float = 15.0
+
+    # Max past events per job (prevents unbounded memory growth)
+    job_max_past_events: int = 200
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
@@ -102,6 +121,13 @@ job_only: 0% resume-specific, 100% supplement"""
 
 # --- File limits ---
 MAX_RESUME_FILE_SIZE: int = 10 * 1024 * 1024  # 10 MB
+
+# --- Memory & streaming safety ---
+MAX_STREAM_COLLECT_CHARS: int = 500_000
+MAX_RESUME_ANALYSIS_CHARS: int = 30_000
+MAX_RESUME_SUMMARY_CHARS: int = 20_000
+MAX_RAG_CONTEXT_RESUME_CHARS: int = 10_000
+MAX_RAG_CONTEXT_JD_CHARS: int = 5_000
 
 
 # Generation mode configurations

@@ -35,6 +35,12 @@ async def _retrieve_rag_context(
     Returns:
         Concatenated retrieved context string, or empty string on failure.
     """
+    # Check RAG feature toggle first (before any heavy imports)
+    from app.config import get_settings
+    if not get_settings().rag_enabled:
+        logger.info("RAG skipped: RAG_ENABLED=false")
+        return ""
+
     if not resume_text and not jd_text:
         logger.info("RAG skipped: no resume or JD text provided")
         return ""
