@@ -31,9 +31,7 @@ def parse_pdf(content: bytes) -> str:
     """Parse PDF file content, extracting plain text.
 
     Uses subprocess isolation to prevent fitz (PyMuPDF) C library from
-    corrupting the parent process heap allocator.  The fitz import and
-    all PDF processing happen inside a child process; the parent only
-    receives the extracted text back.
+    corrupting the parent process heap allocator.
 
     Args:
         content: Raw PDF file bytes.
@@ -48,21 +46,30 @@ def parse_pdf(content: bytes) -> str:
     import subprocess
 
     # Inline script that the child process will execute.
-    # Uses subprocess.run() instead of multiprocessing.Process to avoid
-    # pickling issues with the 'spawn' context (local functions can't be pickled).
-    # PDF bytes are passed via stdin; text output via stdout with a simple
-    # length-prefixed protocol to safely handle arbitrary content.
+    # Uses subprocess.run() instead of multiprocessing.Process because the
+    # 'spawn' context cannot pickle local/nested functions, and 'fork' would
+    # copy the parent's (potentially corrupted by fitz) heap.  subprocess
+    # avoids both problems: no pickling needed, total process isolation.
     _WORKER_SCRIPT = r"""
 import sys, struct
+MAX_FRAMES = 500          # safety limit for page iteration
+MAX_TEXT_LEN = 10 * 1024 * 1024  # 10 MB text limit
 try:
     import fitz  # PyMuPDF — only imported in child process
     data = sys.stdin.buffer.read()
     doc = fitz.open(stream=data, filetype="pdf")
     text_parts = []
+    frames = 0
     for page in doc:
+        frames += 1
+        if frames > MAX_FRAMES:
+            break
         page_text = page.get_text()
         if page_text.strip():
             text_parts.append(page_text.strip())
+        total = sum(len(t) for t in text_parts)
+        if total > MAX_TEXT_LEN:
+            break
     doc.close()
     result_text = "\n\n".join(text_parts) if text_parts else ""
     encoded = result_text.encode("utf-8")
@@ -110,11 +117,6 @@ except Exception as e:
 
     except subprocess.TimeoutExpired:
         raise ValueError("PDF 解析超时（30秒）")
-    except ValueError:
-        raise
-    except Exception as e:
-        logger.error(f"PDF parsing subprocess failed: {e}")
-        raise ValueError(f"PDF 解析失败: {str(e)}")
 
 
 def parse_docx(content: bytes) -> str:
