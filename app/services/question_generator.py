@@ -757,8 +757,8 @@ async def run_generation_job(
                     _emit({"type": "question", "question": q})
                     _emit({
                         "type": "progress_update",
-                        "completed": job.completed_count,
-                        "total": question_count,
+                        "completed_count": job.completed_count,
+                        "total_planned": question_count,
                     })
 
         if job.should_terminate():
@@ -801,8 +801,8 @@ async def run_generation_job(
                         _emit({"type": "question", "question": q})
                         _emit({
                             "type": "progress_update",
-                            "completed": job.completed_count,
-                            "total": question_count,
+                            "completed_count": job.completed_count,
+                            "total_planned": question_count,
                         })
                     # Update unique_so_far for the loop condition
                     unique_so_far = deduplicate_new_questions(

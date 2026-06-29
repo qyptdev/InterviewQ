@@ -634,21 +634,18 @@ function processSSEEvent(event, accumulatedQuestions, userHasScrolled, targetCou
             document.getElementById('loading-text').textContent = event.current_stage;
         }
     } else if (event.type === 'question') {
-        // Only display questions up to target count if target is specified
-        if (!targetCount || accumulatedQuestions.length < targetCount) {
-            accumulatedQuestions.push(event.question);
+        // Always collect all questions — dedup is handled by backend
+        accumulatedQuestions.push(event.question);
 
-            // Update progress bar
-            const displayTotal = targetCount || accumulatedQuestions.length;
-            const progress = targetCount ? Math.min(100, (accumulatedQuestions.length / targetCount) * 100) : 0;
-            if (targetCount) {
-                document.getElementById('stream-progress-bar').style.width = progress + '%';
-            }
-            document.getElementById('stream-counter').textContent = `已生成 ${accumulatedQuestions.length}${targetCount ? ' / ' + targetCount : ''} 题`;
-
-            // Append question to result section immediately (streaming display)
-            appendQuestionToPreview(event.question, accumulatedQuestions.length, userHasScrolled);
+        // Update progress bar (prefer progress_update event data for accurate count)
+        if (targetCount) {
+            const progress = Math.min(100, (accumulatedQuestions.length / targetCount) * 100);
+            document.getElementById('stream-progress-bar').style.width = progress + '%';
+            document.getElementById('stream-counter').textContent = `已生成 ${accumulatedQuestions.length} / ${targetCount} 题`;
         }
+
+        // Append question to result section immediately (streaming display)
+        appendQuestionToPreview(event.question, accumulatedQuestions.length, userHasScrolled);
     } else if (event.type === 'complete') {
         window.removeEventListener('scroll', scrollHandler);
         hideLoading();
@@ -913,13 +910,14 @@ function appendQuestionToPreview(question, index, userHasScrolled) {
 
 function showCompleteSummary(data) {
     const content = document.getElementById('result-content');
+    const savedCount = data.questions_saved || data.questions.length;
 
     // Prepend summary banner
     const summaryDiv = document.createElement('div');
     summaryDiv.className = 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/30 rounded-lg p-4 mb-4';
     summaryDiv.innerHTML = `
         <p class="text-green-700 dark:text-green-300">
-            ✅ 已生成 <strong>${data.questions_saved}</strong> 道面试题，保存至题库:
+            ✅ 已生成 <strong>${savedCount}</strong> 道面试题，保存至题库:
             <a href="/banks" class="underline hover:text-green-600 dark:hover:text-green-200">${escapeHtml(data.bank_name)}</a>
         </p>
     `;
@@ -988,7 +986,7 @@ function showResult(data) {
 
     let html = '<div class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/30 rounded-lg p-4 mb-4">';
     html += '<p class="text-green-700 dark:text-green-300">';
-    html += '已生成 <strong>' + data.questions_saved + '</strong> 道面试题，';
+    html += '已生成 <strong>' + (data.questions_saved || data.questions.length) + '</strong> 道面试题，';
     html += '保存至题库: <a href="/banks" class="underline hover:text-green-600 dark:hover:text-green-200">' + escapeHtml(data.bank_name) + '</a>';
     html += '</p></div>';
 
