@@ -4,7 +4,7 @@ import json
 import logging
 import re
 
-from app.config import MAX_BATCH_SIZE, MAX_LLM_UNDERPRODUCE_RETRIES
+from app.config import MAX_BATCH_SIZE, MAX_LLM_UNDERPRODUCE_RETRIES, LLM_MAX_TOKENS_GENERATION
 from app.core.state_models import QuestionPlan, QuestionBatch
 from app.llm.client import get_llm_router
 from app.llm.prompt_loader import load_prompt
@@ -244,6 +244,7 @@ async def generate_question_batch(
                 use_light=False,
                 response_format={"type": "json_object"},
                 temperature=temperature,
+                max_tokens=LLM_MAX_TOKENS_GENERATION,
             )
 
             # Parse JSON with robust extraction

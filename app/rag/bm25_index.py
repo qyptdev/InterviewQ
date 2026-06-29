@@ -7,6 +7,8 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
+MAX_BM25_DOCUMENTS = 200
+
 
 class BM25Index:
     """Simple BM25 index for keyword-based retrieval."""
@@ -22,6 +24,13 @@ class BM25Index:
 
     def add_documents(self, documents: list[dict]) -> None:
         """Add documents to the index."""
+        # Cap document count to prevent unbounded memory growth
+        if len(documents) > MAX_BM25_DOCUMENTS:
+            logger.warning(
+                f"BM25: truncating {len(documents)} docs to {MAX_BM25_DOCUMENTS}"
+            )
+            documents = documents[:MAX_BM25_DOCUMENTS]
+
         for doc in documents:
             content = doc.get("content", "")
             tokens = self._tokenize(content)

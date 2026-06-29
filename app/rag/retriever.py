@@ -1,8 +1,11 @@
 """Hybrid retriever combining BM25 and vector search."""
 
+import asyncio
 import logging
+import math
 from typing import Optional
 
+from app.config import get_settings
 from app.rag.bm25_index import BM25Index
 from app.rag.raptor_tree import RaptorTree
 
@@ -18,6 +21,7 @@ class HybridRetriever:
         self.raptor = RaptorTree()
         self.documents: list[dict] = []
         self.embeddings: Optional[list[list[float]]] = None
+        self._query_embedding_cache: dict[str, list[float]] = {}
 
     async def index(self, documents: list[dict]) -> None:
         """Index documents for hybrid search."""
@@ -39,9 +43,30 @@ class HybridRetriever:
                 logger.info("Embedding skipped: embedding_enabled=False")
                 self.embeddings = None
             else:
+                # Cap document count to prevent OOM on huge resumes
+                max_docs = get_settings().job_max_past_events * 2  # reuse constant as heuristic
+                if len(documents) > max_docs:
+                    logger.warning(
+                        f"RAG: truncating {len(documents)} docs to {max_docs} for embedding"
+                    )
+                    documents = documents[:max_docs]
+                    self.documents = documents
                 texts = [doc.get("content", "") for doc in documents]
-                self.embeddings = await embedder.embed(texts)
-                logger.info(f"Embeddings generated for {len(documents)} documents")
+                # Batch embed (5 per request) to limit per-request memory
+                batch_size = 5
+                all_embeddings: list[list[float]] = []
+                for i in range(0, len(texts), batch_size):
+                    batch_texts = texts[i:i + batch_size]
+                    try:
+                        batch_emb = await asyncio.wait_for(
+                            embedder.embed(batch_texts), timeout=30.0
+                        )
+                        all_embeddings.extend(batch_emb)
+                    except asyncio.TimeoutError:
+                        logger.warning(f"Embedding batch {i//batch_size + 1} timed out (30s)")
+                        break
+                self.embeddings = all_embeddings
+                logger.info(f"Embeddings generated for {len(documents)} documents ({len(texts)} texts in {math.ceil(len(texts)/batch_size)} batches)")
         except Exception as e:
             logger.warning(f"Embedding generation failed: {e}")
             self.embeddings = None
@@ -84,7 +109,11 @@ class HybridRetriever:
             if embedder is None:
                 logger.info("Vector search skipped: embedding_enabled=False")
                 return []
-            query_embedding = await embedder.embed_single(query)
+
+            # Cache query embedding to avoid repeated API calls
+            if query not in self._query_embedding_cache:
+                self._query_embedding_cache[query] = await embedder.embed_single(query)
+            query_embedding = self._query_embedding_cache[query]
 
             # Calculate cosine similarities
             scored = []
@@ -159,3 +188,4 @@ class HybridRetriever:
         self.raptor = RaptorTree()
         self.documents.clear()
         self.embeddings = None
+        self._query_embedding_cache.clear()

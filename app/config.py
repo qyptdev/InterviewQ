@@ -129,6 +129,19 @@ MAX_RESUME_SUMMARY_CHARS: int = 20_000
 MAX_RAG_CONTEXT_RESUME_CHARS: int = 10_000
 MAX_RAG_CONTEXT_JD_CHARS: int = 5_000
 
+# --- RAG index size caps ---
+MAX_BM25_DOCUMENTS: int = 200
+"""Maximum documents in BM25 index to prevent unbounded memory growth."""
+
+MAX_RAPTOR_NODES: int = 200
+"""Maximum chunks in RAPTOR tree to prevent unbounded memory growth."""
+
+# --- LLM token safety limits ---
+LLM_MAX_TOKENS_GENERATION: int = 4096
+"""Maximum tokens for LLM generation responses (question batch, resume
+analysis, plan creation). Prevents runaway LLM output from consuming
+excessive memory. Override via .env LLM_MAX_TOKENS if needed."""
+
 
 # Generation mode configurations
 GENERATION_MODES = {

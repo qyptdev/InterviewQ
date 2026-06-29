@@ -1,8 +1,10 @@
 """Plan node for question generation."""
 
+import hashlib
 import json
 import logging
 import math
+import time
 
 from app.config import MAX_BATCH_SIZE
 from app.core.state_models import QuestionPlan
@@ -15,6 +17,11 @@ logger = logging.getLogger(__name__)
 RAG_TOP_K = 5  # Number of chunks to retrieve
 RAG_CHUNK_SIZE = 1024
 RAG_CHUNK_OVERLAP = 200
+
+# Module-level RAG cache: avoid rebuilding index for same content
+_rag_cache: dict[str, tuple[str, float]] = {}
+_RAG_CACHE_MAX_ENTRIES = 10
+_RAG_CACHE_TTL_SECONDS = 300.0  # 5 minutes
 
 
 async def _retrieve_rag_context(
@@ -41,10 +48,30 @@ async def _retrieve_rag_context(
         logger.info("RAG skipped: RAG_ENABLED=false")
         return ""
 
+    # Runtime memory guard: skip RAG if system RAM is too low
+    from app.rag.embedder import _check_memory_limit
+    if not _check_memory_limit(limit_mb=2048):  # 2GB threshold
+        logger.warning("RAG skipped: insufficient system memory (< 2GB available)")
+        return ""
+
+    # Check RAG cache for this exact content combination
+    content_key = hashlib.md5(
+        (resume_text + jd_text + job_title).encode()
+    ).hexdigest()
+    now = time.monotonic()
+    if content_key in _rag_cache:
+        cached_context, cached_at = _rag_cache[content_key]
+        if now - cached_at < _RAG_CACHE_TTL_SECONDS:
+            logger.info(f"RAG cache hit (key={content_key[:8]}, age={now - cached_at:.0f}s)")
+            return cached_context
+        else:
+            del _rag_cache[content_key]
+
     if not resume_text and not jd_text:
         logger.info("RAG skipped: no resume or JD text provided")
         return ""
 
+    retriever = None
     try:
         from app.rag.chunker import chunk_text
         from app.rag.retriever import HybridRetriever
@@ -109,11 +136,33 @@ async def _retrieve_rag_context(
             f"RAG: retrieved {len(results)} chunks "
             f"({len(rag_context)} chars) for query='{query}'"
         )
+
+        # Store in RAG cache
+        _rag_cache[content_key] = (rag_context, time.monotonic())
+        # Evict oldest entries if cache is full
+        if len(_rag_cache) > _RAG_CACHE_MAX_ENTRIES:
+            oldest_key = min(_rag_cache, key=lambda k: _rag_cache[k][1])
+            del _rag_cache[oldest_key]
+
+        # Truncate RAG context to prevent prompt overflow
+        from app.config import MAX_RAG_CONTEXT_RESUME_CHARS, MAX_RAG_CONTEXT_JD_CHARS
+        max_chars = MAX_RAG_CONTEXT_RESUME_CHARS if resume_text else MAX_RAG_CONTEXT_JD_CHARS
+        if len(rag_context) > max_chars:
+            logger.warning(
+                f"RAG context truncated: {len(rag_context)} > {max_chars} chars"
+            )
+            rag_context = rag_context[:max_chars]
+
         return rag_context
 
     except Exception as e:
         logger.warning(f"RAG retrieval failed, falling back to no-RAG mode: {e}")
         return ""
+
+    finally:
+        # Free retriever memory even on error
+        if retriever is not None:
+            retriever.clear()
 
 
 async def analyze_resume(resume_text: str) -> dict:
@@ -138,6 +187,7 @@ async def analyze_resume(resume_text: str) -> dict:
             messages,
             use_light=True,
             response_format={"type": "json_object"},
+            max_tokens=2048,  # Analysis responses should be concise
         )
         return json.loads(response)
     except json.JSONDecodeError as e:
@@ -211,6 +261,7 @@ async def create_question_plan(
             messages,
             use_light=True,
             response_format={"type": "json_object"},
+            max_tokens=2048,  # Plan responses should be concise
         )
         data = json.loads(response)
 

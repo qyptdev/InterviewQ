@@ -98,11 +98,15 @@ _embedding_client: Optional[EmbeddingClient] = None
 
 
 def get_embedding_client() -> Optional["EmbeddingClient"]:
-    """Get the global embedding client, or None if embedding is disabled."""
+    """Get the global embedding client, or None if embedding is disabled or memory is insufficient."""
     global _embedding_client
     settings = get_settings()
     if not settings.embedding_enabled:
         logger.info("Embedding disabled via EMBEDDING_ENABLED=false")
+        return None
+    # Runtime memory guard: auto-disable if RAM is too low
+    if not _check_memory_limit(limit_mb=2048):
+        logger.warning("Embedding auto-disabled: insufficient memory (< 2GB RSS)")
         return None
     if _embedding_client is None:
         _embedding_client = EmbeddingClient()

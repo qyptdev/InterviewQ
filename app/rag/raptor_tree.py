@@ -5,6 +5,8 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
+MAX_RAPTOR_NODES = 200
+
 
 class RaptorTree:
     """Simple RAPTOR tree for hierarchical document retrieval."""
@@ -17,6 +19,13 @@ class RaptorTree:
         """Build the RAPTOR tree from document chunks."""
         if not chunks:
             return
+
+        # Cap chunk count to prevent unbounded memory growth
+        if len(chunks) > MAX_RAPTOR_NODES:
+            logger.warning(
+                f"RAPTOR: truncating {len(chunks)} chunks to {MAX_RAPTOR_NODES}"
+            )
+            chunks = chunks[:MAX_RAPTOR_NODES]
 
         # Level 0: original chunks
         self.levels = [chunks]
