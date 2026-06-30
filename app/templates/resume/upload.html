@@ -553,27 +553,26 @@ async function reconnectToJob() {
             throw new Error('重新连接失败');
         }
 
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
+        // Read entire SSE response as text, then parse all events at once.
+        // This avoids ReadableStream/getReader compatibility issues in some
+        // browser engines where streaming reader.read() may hang or drop data.
+        const responseText = await response.text();
+        const allChunks = responseText.split('\n\n');
 
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split('\n\n');
-            buffer = lines.pop() || '';
-
-            for (const line of lines) {
-                if (!line.startsWith('data: ')) continue;
-                const jsonStr = line.slice(6);
-                try {
-                    const event = JSON.parse(jsonStr);
-                    processSSEEvent(event, accumulatedQuestions, userHasScrolled, null, scrollHandler);
-                } catch (e) {
-                    console.warn('Failed to parse SSE event:', e);
-                }
+        for (const line of allChunks) {
+            if (!line.trim() || !line.startsWith('data: ')) continue;
+            const jsonStr = line.slice(6);
+            let event;
+            try {
+                event = JSON.parse(jsonStr);
+            } catch (e) {
+                console.warn('Failed to parse SSE data as JSON:', jsonStr.substring(0, 100), e);
+                continue;
+            }
+            try {
+                processSSEEvent(event, accumulatedQuestions, userHasScrolled, null, scrollHandler);
+            } catch (e) {
+                console.error('Error processing SSE event:', event.type, e);
             }
         }
 
@@ -759,6 +758,13 @@ async function generateQuestions() {
     const generationMode = formData.get('generation_mode') || 'standard';
 
     const sections = collectEditedSections();
+
+    // Append all non-file parameters to formData instead of URL query string
+    // to avoid duplicate params and potential URL-too-long errors with edited_sections
+    const concurrencyVal = parseInt(document.getElementById('input-concurrency').value) || 0;
+    const batchSizeVal = parseInt(document.getElementById('input-batch-size').value) || 0;
+    if (concurrencyVal > 0) formData.append('concurrency', concurrencyVal);
+    if (batchSizeVal > 0) formData.append('batch_size', batchSizeVal);
     if (sections) {
         formData.append('edited_sections', JSON.stringify(sections));
     }
@@ -787,23 +793,6 @@ async function generateQuestions() {
     currentJobId = null;
     isJobPaused = false;
 
-    const params = new URLSearchParams();
-    params.append('job_title', formData.get('job_title'));
-    params.append('jd_text', formData.get('jd_text') || '');
-    params.append('question_count', formData.get('question_count') || '10');
-    params.append('bank_name', formData.get('bank_name') || '');
-    params.append('generation_mode', generationMode);
-
-    // Add advanced settings (concurrency / batch_size)
-    const concurrencyVal = parseInt(document.getElementById('input-concurrency').value) || 0;
-    const batchSizeVal = parseInt(document.getElementById('input-batch-size').value) || 0;
-    params.append('concurrency', concurrencyVal);
-    params.append('batch_size', batchSizeVal);
-
-    if (sections) {
-        params.append('edited_sections', JSON.stringify(sections));
-    }
-
     let accumulatedQuestions = [];
     let targetCount = parseInt(formData.get('question_count')) || 10;
 
@@ -813,7 +802,7 @@ async function generateQuestions() {
     window.addEventListener('scroll', scrollHandler);
 
     try {
-        const response = await fetch('/api/resume/generate-stream?' + params.toString(), {
+        const response = await fetch('/api/resume/generate-stream', {
             method: 'POST',
             body: formData
         });
@@ -827,27 +816,26 @@ async function generateQuestions() {
             return;
         }
 
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
+        // Read entire SSE response as text, then parse all events at once.
+        // This avoids ReadableStream/getReader compatibility issues in some
+        // browser engines where streaming reader.read() may hang or drop data.
+        const responseText = await response.text();
+        const allChunks = responseText.split('\n\n');
 
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split('\n\n');
-            buffer = lines.pop() || '';
-
-            for (const line of lines) {
-                if (!line.startsWith('data: ')) continue;
-                const jsonStr = line.slice(6);
-                try {
-                    const event = JSON.parse(jsonStr);
-                    processSSEEvent(event, accumulatedQuestions, userHasScrolled, targetCount, scrollHandler);
-                } catch (e) {
-                    console.warn('Failed to parse SSE event:', e);
-                }
+        for (const line of allChunks) {
+            if (!line.trim() || !line.startsWith('data: ')) continue;
+            const jsonStr = line.slice(6);
+            let event;
+            try {
+                event = JSON.parse(jsonStr);
+            } catch (e) {
+                console.warn('Failed to parse SSE data as JSON:', jsonStr.substring(0, 100), e);
+                continue;
+            }
+            try {
+                processSSEEvent(event, accumulatedQuestions, userHasScrolled, targetCount, scrollHandler);
+            } catch (e) {
+                console.error('Error processing SSE event:', event.type, e);
             }
         }
 
