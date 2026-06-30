@@ -553,22 +553,11 @@ async function reconnectToJob() {
             throw new Error('重新连接失败');
         }
 
-        // Read entire SSE response as text, then parse all events at once.
-        // This avoids ReadableStream/getReader compatibility issues in some
-        // browser engines where streaming reader.read() may hang or drop data.
+        // Parse SSE events robustly (see generateQuestions for rationale).
         const responseText = await response.text();
-        const allChunks = responseText.split('\n\n');
+        const events = parseSSEText(responseText);
 
-        for (const line of allChunks) {
-            if (!line.trim() || !line.startsWith('data: ')) continue;
-            const jsonStr = line.slice(6);
-            let event;
-            try {
-                event = JSON.parse(jsonStr);
-            } catch (e) {
-                console.warn('Failed to parse SSE data as JSON:', jsonStr.substring(0, 100), e);
-                continue;
-            }
+        for (const event of events) {
             try {
                 processSSEEvent(event, accumulatedQuestions, userHasScrolled, null, scrollHandler);
             } catch (e) {
@@ -604,10 +593,65 @@ function dismissReconnectBanner() {
     window._pendingReconnectStatus = null;
 }
 
+// --- SSE Text Parser (handles multi-line data fields correctly) ---
+
+function parseSSEText(text) {
+    /** Parse raw SSE text into an array of event objects.
+     *
+     *  Per the SSE specification (https://html.spec.whatwg.org/multipage/server-sent-events.html):
+     *  - Two consecutive newlines (\\n\\n) delimit events.
+     *  - Lines starting with "data:" contribute their content (after "data:")
+     *    to the current event's data field.
+     *  - Multiple consecutive "data:" lines within one event are joined
+     *    with a newline.
+     *  - Lines starting with ":" are comments and ignored.
+     *
+     *  Returns an array of parsed JSON event objects. Malformed data lines
+     *  are logged and skipped.
+     */
+    const events = [];
+    // Split on blank lines (blank line = end-of-event per SSE spec).
+    // A blank line is \n\n, but the text may end without a trailing \n\n
+    // so also treat EOF as an implicit event boundary.
+    const rawBlocks = text.split(/\n\n+/);
+
+    for (const block of rawBlocks) {
+        if (!block.trim()) continue;
+
+        // Collect all "data:" lines within this event block
+        let dataStr = '';
+        const lines = block.split('\n');
+        for (const line of lines) {
+            if (line.startsWith('data:')) {
+                const payload = line.substring(5);
+                // SSE spec: if the line is just "data:" with nothing after,
+                // the value is the empty string.  If a space follows "data:",
+                // that leading space is stripped.
+                if (dataStr.length > 0) dataStr += '\n';
+                dataStr += payload;
+            }
+            // Ignore "id:", "event:", "retry:", and comment ("::") lines
+        }
+
+        if (!dataStr.trim()) continue;
+
+        try {
+            const event = JSON.parse(dataStr);
+            events.push(event);
+        } catch (e) {
+            console.warn('Failed to parse SSE data as JSON:', dataStr.substring(0, 200), e);
+        }
+    }
+    return events;
+}
+
 // --- SSE Event Processor (shared by generate and reconnect) ---
 
 function processSSEEvent(event, accumulatedQuestions, userHasScrolled, targetCount, scrollHandler) {
-    if (event.type === 'job_started') {
+    if (event.type === 'heartbeat') {
+        // Ignore heartbeat events — they're just keep-alive pings
+        return;
+    } else if (event.type === 'job_started') {
         currentJobId = event.job_id;
         safeSessionSet('last_job_id', event.job_id);
         showJobControls();
@@ -633,15 +677,16 @@ function processSSEEvent(event, accumulatedQuestions, userHasScrolled, targetCou
             document.getElementById('loading-text').textContent = event.current_stage;
         }
     } else if (event.type === 'question') {
-        // Always collect all questions — dedup is handled by backend
+        // Always collect all questions — dedup is handled by backend.
+        // The backend may emit more question events than the target count
+        // (over-generation strategy); the final count appears in the
+        // "complete" event's questions_saved field.
         accumulatedQuestions.push(event.question);
 
-        // Update progress bar (prefer progress_update event data for accurate count)
-        if (targetCount) {
-            const progress = Math.min(100, (accumulatedQuestions.length / targetCount) * 100);
-            document.getElementById('stream-progress-bar').style.width = progress + '%';
-            document.getElementById('stream-counter').textContent = `已生成 ${accumulatedQuestions.length} / ${targetCount} 题`;
-        }
+        // NOTE: progress display is driven solely by progress_update events,
+        // which report the deduplicated count.  We no longer update the
+        // progress bar here to avoid showing a misleading raw count that
+        // exceeds the user's target.
 
         // Append question to result section immediately (streaming display)
         appendQuestionToPreview(event.question, accumulatedQuestions.length, userHasScrolled);
@@ -651,12 +696,48 @@ function processSSEEvent(event, accumulatedQuestions, userHasScrolled, targetCou
         hideJobControls();
         safeSessionRemove('last_job_id');
         currentJobId = null;
+
+        // The backend may have over-generated questions (emitting more
+        // "question" events than the final saved count due to dedup).
+        // Trim the display to only show the final saved count so the UI
+        // matches what's actually in the bank.
+        const savedCount = event.questions_saved || 0;
+        if (event.questions && event.questions.length > 0) {
+            // Backend sent the final approved list — replace the preview
+            // entirely for consistency.
+            const content = document.getElementById('result-content');
+            // Remove all existing question cards (keep summary out for now)
+            while (content.firstChild) content.removeChild(content.firstChild);
+            // Re-render only the approved questions
+            for (let i = 0; i < event.questions.length; i++) {
+                appendQuestionToPreview(event.questions[i], i + 1, userHasScrolled);
+            }
+            accumulatedQuestions = event.questions;
+        } else if (accumulatedQuestions.length > savedCount) {
+            // No final list from backend, but we have more raw questions
+            // than saved — trim the DOM to match the saved count.
+            const content = document.getElementById('result-content');
+          const cards = content.querySelectorAll('div[class*="border border-gray"]');
+            // Remove excess question cards from the DOM (they come after the summary)
+            const toRemove = accumulatedQuestions.length - savedCount;
+            for (let i = 0; i < toRemove && cards.length > 0; i++) {
+                const last = cards[cards.length - 1 - i];
+                if (last) last.remove();
+            }
+            accumulatedQuestions = accumulatedQuestions.slice(0, savedCount);
+        }
+
         showCompleteSummary({
             questions: accumulatedQuestions,
-            questions_saved: event.questions_saved,
+            questions_saved: savedCount,
             bank_name: event.bank_name,
             bank_id: event.bank_id,
         });
+
+        // Fix progress display: the backend may report completed_count > total_planned
+        // during over-generation; now that we know the final saved count, correct it.
+        document.getElementById('stream-counter').textContent = `已生成 ${savedCount} / ${savedCount} 题`;
+        document.getElementById('stream-progress-bar').style.width = '100%';
     } else if (event.type === 'error') {
         window.removeEventListener('scroll', scrollHandler);
         alert('生成失败: ' + event.message);
@@ -816,22 +897,13 @@ async function generateQuestions() {
             return;
         }
 
-        // Read entire SSE response as text, then parse all events at once.
-        // This avoids ReadableStream/getReader compatibility issues in some
-        // browser engines where streaming reader.read() may hang or drop data.
+        // Parse SSE events robustly: split on blank lines (event boundaries),
+        // and concatenate multi-line data fields (SSE spec: content after
+        // "data:" until the next field or blank line belongs to the same event).
         const responseText = await response.text();
-        const allChunks = responseText.split('\n\n');
+        const events = parseSSEText(responseText);
 
-        for (const line of allChunks) {
-            if (!line.trim() || !line.startsWith('data: ')) continue;
-            const jsonStr = line.slice(6);
-            let event;
-            try {
-                event = JSON.parse(jsonStr);
-            } catch (e) {
-                console.warn('Failed to parse SSE data as JSON:', jsonStr.substring(0, 100), e);
-                continue;
-            }
+        for (const event of events) {
             try {
                 processSSEEvent(event, accumulatedQuestions, userHasScrolled, targetCount, scrollHandler);
             } catch (e) {

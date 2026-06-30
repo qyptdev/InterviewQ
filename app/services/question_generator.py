@@ -577,6 +577,7 @@ async def generate_questions_streaming(
             "bank_name": result["bank"]["name"],
             "questions_saved": result["questions_saved"],
             "total_generated": len(unique_questions),
+            "questions": unique_questions[:result["questions_saved"]],
         }
     except ValueError as e:
         yield {"type": "error", "message": str(e)}
@@ -700,6 +701,10 @@ async def run_generation_job(
         total_llm_calls = 0
         max_total_attempts = question_count * MAX_GENERATION_MULTIPLIER
 
+        # Track unique count for progress reporting (avoids showing raw
+        # over-count that exceeds the user's target and creates confusion).
+        unique_so_far: list[dict] = []
+
         # -- Pass 1: Resume-specific questions (via generation_executor) --
         effective_batch_size = custom_batch_size if custom_batch_size else None
         logger.info(f"Job {job.job_id} Pass 1: Generating {resume_count} resume-specific questions")
@@ -755,11 +760,16 @@ async def run_generation_job(
                     job.questions.append(q)
                     job.completed_count = len(job.questions)
                     _emit({"type": "question", "question": q})
-                    _emit({
-                        "type": "progress_update",
-                        "completed_count": job.completed_count,
-                        "total_planned": question_count,
-                    })
+                # Update unique count for progress (incremental dedup by batch)
+                unique_so_far = deduplicate_new_questions(
+                    new_questions=batch_result.questions,
+                    existing_unique=unique_so_far,
+                )
+                _emit({
+                    "type": "progress_update",
+                    "completed_count": len(unique_so_far),
+                    "total_planned": question_count,
+                })
 
         if job.should_terminate():
             # Skip further generation, go straight to save
@@ -799,16 +809,16 @@ async def run_generation_job(
                         job.questions.append(q)
                         job.completed_count = len(job.questions)
                         _emit({"type": "question", "question": q})
-                        _emit({
-                            "type": "progress_update",
-                            "completed_count": job.completed_count,
-                            "total_planned": question_count,
-                        })
                     # Update unique_so_far for the loop condition
                     unique_so_far = deduplicate_new_questions(
                         new_questions=batch_result.questions,
                         existing_unique=unique_so_far,
                     )
+                    _emit({
+                        "type": "progress_update",
+                        "completed_count": len(unique_so_far),
+                        "total_planned": question_count,
+                    })
 
         # -- Dedup + Save --
         job.current_stage = "deduplicating"
@@ -856,6 +866,7 @@ async def run_generation_job(
                     "questions_saved": result["questions_saved"],
                     "total_generated": len(unique_questions),
                     "terminated_early": True,
+                    "questions": unique_questions[:result["questions_saved"]],
                 })
             else:
                 job.status = "completed"
@@ -865,6 +876,7 @@ async def run_generation_job(
                     "bank_name": result["bank"]["name"],
                     "questions_saved": result["questions_saved"],
                     "total_generated": len(unique_questions),
+                    "questions": unique_questions[:result["questions_saved"]],
                 })
         except ValueError as e:
             job.status = "error"
