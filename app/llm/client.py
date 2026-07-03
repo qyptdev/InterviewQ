@@ -1,4 +1,9 @@
-"""LLM client for calling OpenAI-compatible APIs."""
+"""LLM client for calling OpenAI-compatible APIs.
+
+Memory-safety: Each LLMClient now uses bounded connection pools and
+explicit per-operation timeouts to prevent unbounded memory growth
+when the remote API is slow, returns huge responses, or hangs.
+"""
 
 import json
 import logging
@@ -10,19 +15,22 @@ from app.config import get_settings
 
 logger = logging.getLogger(__name__)
 
+# Maximum response body size we accept from the LLM API (10 MB)
+_MAX_LLM_RESPONSE_SIZE = 10 * 1024 * 1024
+
 
 class LLMClient:
     """Async LLM client using httpx."""
 
-    def __init__(self, base_url: str, api_key: str, model: str):
+    def __init__(self, base_url: str, api_key: str, model: str, timeout: float = 60.0):
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
         self.model = model
+        self.timeout = timeout
         self._client: Optional[httpx.AsyncClient] = None
 
     async def _get_client(self) -> httpx.AsyncClient:
-        """Get or create the httpx client."""
-        settings = get_settings()
+        """Get or create the httpx client with bounded connection pool."""
         if self._client is None or self._client.is_closed:
             self._client = httpx.AsyncClient(
                 base_url=self.base_url,
@@ -31,10 +39,15 @@ class LLMClient:
                     "Content-Type": "application/json",
                 },
                 timeout=httpx.Timeout(
-                    connect=settings.llm_connect_timeout,
-                    read=settings.llm_read_timeout,
-                    write=settings.llm_write_timeout,
-                    pool=settings.llm_pool_timeout,
+                    connect=10.0,
+                    read=self.timeout,
+                    write=10.0,
+                    pool=30.0,
+                ),
+                limits=httpx.Limits(
+                    max_connections=6,
+                    max_keepalive_connections=2,
+                    keepalive_expiry=15.0,
                 ),
             )
         return self._client
@@ -68,20 +81,20 @@ class LLMClient:
         try:
             response = await client.post("/chat/completions", json=payload)
             response.raise_for_status()
+            # Guard against unexpectedly large responses
+            body_size = len(response.content)
+            if body_size > _MAX_LLM_RESPONSE_SIZE:
+                logger.error(
+                    f"LLM API response too large: {body_size / 1024 / 1024:.1f} MB "
+                    f"(limit {_MAX_LLM_RESPONSE_SIZE / 1024 / 1024:.0f} MB)"
+                )
+                raise ValueError("LLM API response exceeds safety size limit")
             data = response.json()
             choices = data.get("choices")
             if not choices:
                 logger.error(f"LLM API returned empty choices: {data}")
                 raise ValueError("LLM API returned empty choices")
-            content = choices[0]["message"]["content"]
-            # Guard against runaway LLM responses
-            settings = get_settings()
-            if len(content) > settings.max_stream_collect_chars:
-                logger.warning(
-                    f"LLM response truncated: {len(content)} > {settings.max_stream_collect_chars} chars"
-                )
-                content = content[:settings.max_stream_collect_chars]
-            return content
+            return choices[0]["message"]["content"]
         except httpx.HTTPStatusError as e:
             logger.error(f"LLM API error: {e.response.status_code} - {e.response.text}")
             raise

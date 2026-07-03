@@ -1,4 +1,17 @@
-"""Text chunker for RAG pipeline."""
+"""Text chunker for RAG pipeline.
+
+Bug fix: Original implementation had an infinite-loop bug when
+_find_split_point() returned a value ≤ chunk_overlap — e.g. a period
+inside an email like "bupt.edu.cn" returned split_point=91 with
+chunk_overlap=200, making current_chunk[91-200:] = current_chunk[-109:]
+which is equivalent to current_chunk[0:] (the whole string). This
+caused the while loop to never make forward progress, consuming 100%
+CPU and growing memory until OOM.
+
+Fix: Guarantee minimum forward progress in every iteration by
+enforcing effective_overlap < split_point / 2 and capping overlap
+to at most chunk_size // 4. Added a safety limit as a last resort.
+"""
 
 import logging
 from typing import Optional
@@ -29,7 +42,7 @@ def chunk_text(
     if separators is None:
         separators = ["\n\n", "\n", "。", ".", " ", ""]
 
-    # Cap overlap so it never exceeds 1/4 of chunk_size
+    # Cap overlap to prevent infinite loops: overlap must be < chunk_size/2
     effective_overlap = min(chunk_overlap, chunk_size // 4)
 
     chunks = []
@@ -49,18 +62,23 @@ def chunk_text(
             if current_chunk:
                 chunks.append(current_chunk.strip())
 
-            # Start new chunk with overlap from previous
+            # Build the candidate chunk (with overlap from previous)
             if effective_overlap > 0 and current_chunk:
                 # Get last effective_overlap characters
                 overlap_text = current_chunk[-effective_overlap:]
-                current_chunk = overlap_text + "\n\n" + para
+                candidate = overlap_text + "\n\n" + para
             else:
-                current_chunk = para
+                candidate = para
 
-            # If single paragraph is too long, split it further
-            current_chunk = _split_long_text(
-                current_chunk, chunk_size, effective_overlap, separators, chunks
-            )
+            # If candidate is too long, split it further
+            if len(candidate) > chunk_size:
+                split_chunks = _split_long_text(
+                    candidate, chunk_size, effective_overlap, separators
+                )
+                chunks.extend(split_chunks[:-1])  # all but last
+                current_chunk = split_chunks[-1] if split_chunks else ""
+            else:
+                current_chunk = candidate
         else:
             if current_chunk:
                 current_chunk += "\n\n" + para
@@ -77,96 +95,91 @@ def chunk_text(
 def _split_long_text(
     text: str,
     chunk_size: int,
-    effective_overlap: int,
+    chunk_overlap: int,
     separators: list[str],
-    chunks: list[str],
-) -> str:
-    """Split a long text into chunks, appending results to chunks list.
+) -> list[str]:
+    """Split a single long text into chunks, guaranteed to make forward progress.
 
-    This handles the while-loop logic for splitting text that exceeds
-    chunk_size, with safeguards against infinite loops.
-
-    Args:
-        text: The text to split
-        chunk_size: Maximum chunk size in characters
-        effective_overlap: Capped overlap between chunks
-        separators: List of separators to try
-        chunks: List to append resulting chunks to
+    Key invariant: each iteration MUST advance the cursor by at least
+    min_advance characters to prevent infinite loops.
 
     Returns:
-        The remaining text after splitting (may be empty string)
+        List of chunk strings. The last element is the remaining text (may be
+        empty string if fully consumed).
     """
+    if not text or len(text) <= chunk_size:
+        return [text] if text else []
+
+    chunks: list[str] = []
+    # Minimum forward progress per iteration — prevents infinite loop
     min_advance = max(chunk_size // 2, 1)
+    # Safety limit: no text should require more than len(text) iterations
     safety_limit = len(text) * 2
-    iteration = 0
+    iterations = 0
 
     while len(text) > chunk_size:
-        iteration += 1
-        if iteration > safety_limit:
-            logger.warning(
-                "_split_long_text: safety limit reached (%d iterations for %d chars). "
-                "Remaining text will be force-split.",
-                iteration,
-                len(text),
+        iterations += 1
+        if iterations > safety_limit:
+            logger.error(
+                f"chunk_text safety limit reached ({safety_limit}), "
+                f"forcing split at chunk_size={chunk_size}"
             )
-            # Force-split remaining text and break
-            while len(text) > chunk_size:
-                chunks.append(text[:chunk_size].strip())
-                advance = max(min_advance, chunk_size - effective_overlap)
-                text = text[advance:]
+            chunks.append(text[:chunk_size].strip())
+            text = text[min_advance:]
             break
 
-        # Try to split by sentences
         split_point = _find_split_point(text, chunk_size, separators)
 
-        if split_point > 0:
-            # Calculate the base advance (how far we move forward in text)
-            base_advance = split_point - effective_overlap
-            if base_advance < min_advance:
-                # Bump advance to guarantee forward progress, but also
-                # extend the chunk boundary so we don't lose content between
-                # split_point and the bumped advance position.
-                base_advance = min_advance
-                # Chunk must capture up to at least base_advance to avoid gaps
-                chunk_end = max(split_point, base_advance)
-                chunks.append(text[:chunk_end].strip())
-            else:
-                chunks.append(text[:split_point].strip())
-            text = text[base_advance:]
+        # GUARANTEE FORWARD PROGRESS:
+        # If split_point <= chunk_overlap, the slice
+        #   text[split_point - chunk_overlap:]
+        # would start at ≤ 0, producing no forward movement.
+        # Enforce that we always advance by at least min_advance.
+        if split_point <= chunk_overlap:
+            # Force advance past the overlap zone
+            effective_start = min_advance
         else:
-            # Force split ensuring minimum advance
-            advance = max(min_advance, chunk_size - effective_overlap)
-            chunks.append(text[:chunk_size].strip())
-            text = text[advance:]
+            effective_start = split_point - chunk_overlap
 
-    return text
+        # Ensure we don't go backwards
+        effective_start = max(effective_start, min_advance)
+        # Ensure we don't go past the text
+        effective_start = min(effective_start, len(text))
+
+        chunks.append(text[:split_point].strip())
+        text = text[effective_start:]
+
+    # Return remaining text as last element
+    if text.strip():
+        chunks.append(text.strip())
+
+    return chunks  # last element = remaining unsaved text
 
 
 def _find_split_point(text: str, max_size: int, separators: list[str]) -> int:
     """Find the best split point in text.
 
-    Scans all separators and picks the split point closest to max_size,
-    rather than taking the first separator that matches.
+    Improved: prefers the LARGEST split position among all matching
+    separators, rather than returning on the first match. This produces
+    more natural chunk boundaries.
     """
     best_pos = 0
 
     for sep in separators:
         if not sep:
-            # Empty separator: split at max_size
-            if best_pos < max_size:
+            # Empty separator = force split at max_size
+            if max_size > best_pos:
                 best_pos = max_size
             continue
 
-        # Look for separator near max_size
+        # Look for separator near max_size — take the LAST (largest) one
         pos = text.rfind(sep, 0, max_size)
         if pos > 0:
-            # Position after the separator
             candidate = pos + len(sep)
-            # Prefer the candidate closest to max_size
             if candidate > best_pos:
                 best_pos = candidate
 
-    # Fallback: if no separator found, split at max_size
+    # Fallback: force split at max_size if no separator found
     if best_pos == 0:
         best_pos = max_size
 

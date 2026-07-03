@@ -93,7 +93,7 @@
             <div class="grid grid-cols-2 gap-4 mb-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">生成题目数量</label>
-                    <input type="number" name="question_count" value="10" min="1" max="500"
+                    <input type="number" name="question_count" value="10" min="1" max="100"
                         class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white">
                 </div>
                 <div>
@@ -548,25 +548,43 @@ async function reconnectToJob() {
     let accumulatedQuestions = [];
 
     try {
-        const response = await fetch(`/api/resume/jobs/${jobId}/stream`);
-        if (!response.ok) {
-            throw new Error('重新连接失败');
-        }
+        // Use EventSource directly for reconnect (GET endpoint, reliable SSE)
+        addDebugLogEntry('reconnect', `正在通过 EventSource 重连任务 ${jobId}...`);
 
-        // Parse SSE events robustly (see generateQuestions for rationale).
-        const responseText = await response.text();
-        const events = parseSSEText(responseText);
+        const esCompleted = await new Promise((resolve) => {
+            const es = new EventSource(`/api/resume/jobs/${jobId}/stream`);
+            const MAX_WAIT = 180000;
+            const timeoutId = setTimeout(() => { es.close(); resolve(false); }, MAX_WAIT);
 
-        for (const event of events) {
-            try {
-                processSSEEvent(event, accumulatedQuestions, userHasScrolled, null, scrollHandler);
-            } catch (e) {
-                console.error('Error processing SSE event:', event.type, e);
-            }
+            es.onmessage = (e) => {
+                try {
+                    const event = JSON.parse(e.data);
+                    processSSEEvent(event, accumulatedQuestions, userHasScrolled, null, scrollHandler);
+                    if (event.type === 'complete' || event.type === 'error') {
+                        clearTimeout(timeoutId);
+                        es.close();
+                        resolve(true);
+                    }
+                } catch (err) {
+                    console.warn('Failed to parse reconnect EventSource event:', err);
+                }
+            };
+
+            es.onerror = () => {
+                clearTimeout(timeoutId);
+                es.close();
+                resolve(false);
+            };
+        });
+
+        if (esCompleted) {
+            addDebugLogEntry('reconnect', 'EventSource 重连接收全部事件完成');
+        } else {
+            addDebugLogEntry('reconnect', 'EventSource 重连超时或断开');
         }
 
         window.removeEventListener('scroll', scrollHandler);
-        // Only perform fallback cleanup if processSSEEvent didn't already handle completion/error
+        // Final cleanup: if processSSEEvent still hasn't handled completion
         if (currentJobId) {
             hideLoading();
             hideJobControls();
@@ -599,42 +617,28 @@ function parseSSEText(text) {
     /** Parse raw SSE text into an array of event objects.
      *
      *  Per the SSE specification (https://html.spec.whatwg.org/multipage/server-sent-events.html):
-     *  - Two consecutive newlines (\\n\\n) delimit events.
+     *  - Two consecutive newlines (\n\n) delimit events.
      *  - Lines starting with "data:" contribute their content (after "data:")
      *    to the current event's data field.
      *  - Multiple consecutive "data:" lines within one event are joined
      *    with a newline.
      *  - Lines starting with ":" are comments and ignored.
-     *
-     *  Returns an array of parsed JSON event objects. Malformed data lines
-     *  are logged and skipped.
      */
     const events = [];
-    // Split on blank lines (blank line = end-of-event per SSE spec).
-    // A blank line is \n\n, but the text may end without a trailing \n\n
-    // so also treat EOF as an implicit event boundary.
     const rawBlocks = text.split(/\n\n+/);
 
     for (const block of rawBlocks) {
         if (!block.trim()) continue;
-
-        // Collect all "data:" lines within this event block
         let dataStr = '';
         const lines = block.split('\n');
         for (const line of lines) {
             if (line.startsWith('data:')) {
                 const payload = line.substring(5);
-                // SSE spec: if the line is just "data:" with nothing after,
-                // the value is the empty string.  If a space follows "data:",
-                // that leading space is stripped.
                 if (dataStr.length > 0) dataStr += '\n';
                 dataStr += payload;
             }
-            // Ignore "id:", "event:", "retry:", and comment ("::") lines
         }
-
         if (!dataStr.trim()) continue;
-
         try {
             const event = JSON.parse(dataStr);
             events.push(event);
@@ -643,6 +647,187 @@ function parseSSEText(text) {
         }
     }
     return events;
+}
+
+// --- SSE Stream Reader (async generator, handles multi-line data fields) ---
+
+async function* streamSSEEvents(response) {
+    /** Stream-parse SSE events from a fetch Response.
+     *
+     *  Strategy: use getReader() with a generous per-read timeout so that
+     *  the stream yields events as they arrive from the server (real-time).
+     *  If the reader stalls (no data for 60s — covers LLM batch wait times),
+     *  exit the generator so the caller can fall back to reconnect via
+     *  the job's /stream endpoint (GET, works with EventSource).
+     *
+     *  Handles multi-line data: fields correctly per SSE spec.
+     */
+
+    const SSE_READ_TIMEOUT = 60000; // ms — generous timeout per reader.read() call
+    const SSE_CHUNK_TIMEOUT = 5000; // ms — max wait after initial data for next chunk
+
+    // Fallback: if ReadableStream/getReader is not available
+    if (!response.body || typeof response.body.getReader !== 'function') {
+        const text = await response.text();
+        const events = parseSSEText(text);
+        for (const event of events) yield event;
+        return;
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let streamTimedOut = false;
+    let chunksReceived = 0;
+    let timeOfLastChunk = Date.now();
+
+    try {
+        while (true) {
+            // Use generous timeout for first chunk, tighter timeout for
+            // subsequent chunks once streaming has started.
+            const timeout = chunksReceived === 0
+                ? SSE_READ_TIMEOUT
+                : Math.max(SSE_CHUNK_TIMEOUT, SSE_READ_TIMEOUT);
+
+            let readResult;
+            try {
+                const readPromise = reader.read();
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('stream_timeout')), timeout)
+                );
+                readResult = await Promise.race([readPromise, timeoutPromise]);
+            } catch (e) {
+                if (e.message === 'stream_timeout' || (e.name && e.name === 'TimeoutError')) {
+                    // Stream stalled — reader.read() didn't return within timeout.
+                    // Exit gracefully so caller can reconnect via job stream.
+                    streamTimedOut = true;
+                    break;
+                }
+                throw e; // Re-throw unexpected errors
+            }
+
+            const { done, value } = readResult;
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            chunksReceived++;
+            timeOfLastChunk = Date.now();
+
+            // Split on blank lines (event boundaries per SSE spec)
+            const parts = buffer.split(/\n\n+/);
+            // Last part may be incomplete — keep it in buffer
+            buffer = parts.pop() || '';
+
+            for (const part of parts) {
+                if (!part.trim()) continue;
+                // Collect all data: lines within this event block
+                let dataStr = '';
+                for (const line of part.split('\n')) {
+                    if (line.startsWith('data:')) {
+                        if (dataStr.length > 0) dataStr += '\n';
+                        dataStr += line.substring(5);
+                    }
+                }
+                if (!dataStr.trim()) continue;
+                try {
+                    yield JSON.parse(dataStr);
+                } catch (e) {
+                    console.warn('Failed to parse SSE event:', dataStr.substring(0, 200), e);
+                }
+            }
+        }
+
+        // Process remaining buffer when stream ended normally (not timed out)
+        if (!streamTimedOut && buffer.trim()) {
+            let dataStr = '';
+            for (const line of buffer.split('\n')) {
+                if (line.startsWith('data:')) {
+                    if (dataStr.length > 0) dataStr += '\n';
+                    dataStr += line.substring(5);
+                }
+            }
+            if (dataStr.trim()) {
+                try { yield JSON.parse(dataStr); }
+                catch (e) { console.warn('Failed to parse remaining SSE:', e); }
+            }
+        }
+    } finally {
+        try { reader.releaseLock(); } catch (_) {}
+    }
+
+    // If stream timed out, yield any accumulated buffer events we already
+    // captured before the stall, then let the caller use job reconnect
+    // for the full fallback.
+    if (streamTimedOut && buffer.trim()) {
+        const events = parseSSEText(buffer);
+        for (const event of events) yield event;
+    }
+}
+
+// --- EventSource-based Reconnect (fallback for Camoufox streaming stalls) ---
+
+async function reconnectViaEventSource(jobId, eventsSeen) {
+    /** Reconnect to a running job's SSE stream using EventSource.
+     *
+     *  EventSource is the browser-native SSE consumer and works
+     *  reliably in Camoufox (unlike fetch+getReader which can hang).
+     *
+     *  Args:
+     *    jobId: The generation job ID to reconnect to.
+     *    eventsSeen: Set of event keys already processed (for dedup).
+     *
+     *  Returns: Array of new events (not already seen by the caller).
+     */
+    return new Promise((resolve) => {
+        const newEvents = [];
+        const es = new EventSource(`/api/resume/jobs/${jobId}/stream`);
+        const MAX_RECONNECT_WAIT = 180000; // 3 minutes max — covers deep mode
+        const timeoutId = setTimeout(() => {
+            es.close();
+            resolve(newEvents);
+        }, MAX_RECONNECT_WAIT);
+
+        es.onmessage = (e) => {
+            try {
+                const event = JSON.parse(e.data);
+                const key = event.type + ':' + (event.job_id || event.stage || event.question?.title?.substring(0, 40) || event.completed_count || '');
+                // Skip events we already processed via getReader()
+                if (eventsSeen.has(key)) return;
+                eventsSeen.add(key);
+                newEvents.push(event);
+                // Update loading text for all event types during reconnect
+                if (event.type === 'stage') {
+                    document.getElementById('loading-text').textContent = event.message;
+                    addDebugLogEntry(event.stage, event.message);
+                } else if (event.type === 'progress_update') {
+                    const completed = event.completed_count || 0;
+                    const total = event.total_planned || 0;
+                    const pct = total > 0 ? Math.min(100, (completed / total) * 100) : 0;
+                    document.getElementById('stream-progress-bar').style.width = pct + '%';
+                    document.getElementById('stream-counter').textContent = `已生成 ${completed} / ${total} 题`;
+                    addDebugLogEntry('progress', `进度更新: ${completed}/${total}`);
+                } else if (event.type === 'question') {
+                    addDebugLogEntry('question', `收到题目: ${(event.question?.title || '').substring(0, 30)}...`);
+                }
+                // If job completed or errored, close EventSource and resolve
+                if (event.type === 'complete' || event.type === 'error') {
+                    clearTimeout(timeoutId);
+                    es.close();
+                    resolve(newEvents);
+                }
+            } catch (err) {
+                console.warn('Failed to parse EventSource message:', e.data?.substring(0, 100), err);
+            }
+        };
+
+        es.onerror = () => {
+            // EventSource closed by server (normal for completed jobs)
+            // or network error. Either way, resolve with what we have.
+            clearTimeout(timeoutId);
+            es.close();
+            resolve(newEvents);
+        };
+    });
 }
 
 // --- SSE Event Processor (shared by generate and reconnect) ---
@@ -667,7 +852,7 @@ function processSSEEvent(event, accumulatedQuestions, userHasScrolled, targetCou
         document.getElementById('loading-text').textContent = event.message;
         addDebugLogEntry(event.stage, event.message);
     } else if (event.type === 'progress_update') {
-        // Explicit progress update from backend
+        // Explicit progress update from backend — authoritative, always trust it
         const completed = event.completed_count || 0;
         const total = event.total_planned || targetCount || 0;
         const pct = total > 0 ? Math.min(100, (completed / total) * 100) : 0;
@@ -678,15 +863,7 @@ function processSSEEvent(event, accumulatedQuestions, userHasScrolled, targetCou
         }
     } else if (event.type === 'question') {
         // Always collect all questions — dedup is handled by backend.
-        // The backend may emit more question events than the target count
-        // (over-generation strategy); the final count appears in the
-        // "complete" event's questions_saved field.
         accumulatedQuestions.push(event.question);
-
-        // NOTE: progress display is driven solely by progress_update events,
-        // which report the deduplicated count.  We no longer update the
-        // progress bar here to avoid showing a misleading raw count that
-        // exceeds the user's target.
 
         // Append question to result section immediately (streaming display)
         appendQuestionToPreview(event.question, accumulatedQuestions.length, userHasScrolled);
@@ -706,7 +883,7 @@ function processSSEEvent(event, accumulatedQuestions, userHasScrolled, targetCou
             // Backend sent the final approved list — replace the preview
             // entirely for consistency.
             const content = document.getElementById('result-content');
-            // Remove all existing question cards (keep summary out for now)
+            // Remove all existing question cards
             while (content.firstChild) content.removeChild(content.firstChild);
             // Re-render only the approved questions
             for (let i = 0; i < event.questions.length; i++) {
@@ -717,8 +894,8 @@ function processSSEEvent(event, accumulatedQuestions, userHasScrolled, targetCou
             // No final list from backend, but we have more raw questions
             // than saved — trim the DOM to match the saved count.
             const content = document.getElementById('result-content');
-          const cards = content.querySelectorAll('div[class*="border border-gray"]');
-            // Remove excess question cards from the DOM (they come after the summary)
+            const cards = content.querySelectorAll('div[class*="border border-gray"]');
+            // Remove excess question cards from the DOM
             const toRemove = accumulatedQuestions.length - savedCount;
             for (let i = 0; i < toRemove && cards.length > 0; i++) {
                 const last = cards[cards.length - 1 - i];
@@ -734,8 +911,8 @@ function processSSEEvent(event, accumulatedQuestions, userHasScrolled, targetCou
             bank_id: event.bank_id,
         });
 
-        // Fix progress display: the backend may report completed_count > total_planned
-        // during over-generation; now that we know the final saved count, correct it.
+        // Fix progress display: now that we know the final saved count,
+        // correct the counter to match.
         document.getElementById('stream-counter').textContent = `已生成 ${savedCount} / ${savedCount} 题`;
         document.getElementById('stream-progress-bar').style.width = '100%';
     } else if (event.type === 'error') {
@@ -840,8 +1017,8 @@ async function generateQuestions() {
 
     const sections = collectEditedSections();
 
-    // Append all non-file parameters to formData instead of URL query string
-    // to avoid duplicate params and potential URL-too-long errors with edited_sections
+    // Append non-file parameters to formData instead of URL query string
+    // to avoid duplicate params and potential URL-too-long errors
     const concurrencyVal = parseInt(document.getElementById('input-concurrency').value) || 0;
     const batchSizeVal = parseInt(document.getElementById('input-batch-size').value) || 0;
     if (concurrencyVal > 0) formData.append('concurrency', concurrencyVal);
@@ -883,13 +1060,20 @@ async function generateQuestions() {
     window.addEventListener('scroll', scrollHandler);
 
     try {
-        const response = await fetch('/api/resume/generate-stream', {
+        // === Dual-channel SSE strategy for Camoufox compatibility ===
+        // 1. POST to /generate-stream to start the job (returns SSE with job_started)
+        // 2. Extract job_id from the initial SSE data
+        // 3. Use EventSource (GET /jobs/{id}/stream) as the PRIMARY event channel
+        //    (EventSource is native SSE, works reliably in Camoufox)
+        // This avoids the getReader() hanging issue entirely.
+
+        const postResponse = await fetch('/api/resume/generate-stream', {
             method: 'POST',
             body: formData
         });
 
-        if (!response.ok) {
-            const error = await response.json();
+        if (!postResponse.ok) {
+            const error = await postResponse.json();
             alert('生成失败: ' + (error.detail || '未知错误'));
             window.removeEventListener('scroll', scrollHandler);
             document.getElementById('loading').style.display = 'none';
@@ -897,30 +1081,113 @@ async function generateQuestions() {
             return;
         }
 
-        // Parse SSE events robustly: split on blank lines (event boundaries),
-        // and concatenate multi-line data fields (SSE spec: content after
-        // "data:" until the next field or blank line belongs to the same event).
-        const responseText = await response.text();
-        const events = parseSSEText(responseText);
+        // Read job_id from the initial SSE response via clone+text
+        // (the original response body will be consumed by getReader anyway)
+        const jobIdPromise = postResponse.clone().text().then(t => {
+            const events = parseSSEText(t);
+            const started = events.find(e => e.type === 'job_started');
+            return started ? started.job_id : null;
+        }).catch(() => null);
 
-        for (const event of events) {
+        // Also try to stream events via getReader in the background
+        // (for real-time in browsers where it works)
+        const streamEvents = [];
+        const streamPromise = (async () => {
             try {
-                processSSEEvent(event, accumulatedQuestions, userHasScrolled, targetCount, scrollHandler);
+                for await (const event of streamSSEEvents(postResponse)) {
+                    streamEvents.push(event);
+                    try {
+                        processSSEEvent(event, accumulatedQuestions, userHasScrolled, targetCount, scrollHandler);
+                    } catch (e) {
+                        console.error('Error processing stream event:', event.type, e);
+                    }
+                    // If processSSEEvent handled completion, we're done
+                    if (event.type === 'complete' || event.type === 'error') return true;
+                }
             } catch (e) {
-                console.error('Error processing SSE event:', event.type, e);
+                console.warn('Stream reading failed:', e);
             }
-        }
+            return false;
+        })();
 
-        window.removeEventListener('scroll', scrollHandler);
-        // Only perform fallback cleanup if processSSEEvent didn't already handle completion/error
-        if (currentJobId) {
-            document.getElementById('loading').style.display = 'none';
-            hideJobControls();
-            safeSessionRemove('last_job_id');
-            currentJobId = null;
-            if (accumulatedQuestions.length > 0) {
-                showCompleteSummary({ questions: accumulatedQuestions, questions_saved: accumulatedQuestions.length });
+        // Wait briefly for the job_id (the first SSE event should arrive fast)
+        const jobId = await jobIdPromise;
+        addDebugLogEntry('job', `任务已提交 (ID: ${jobId || '获取中...'})`);
+
+        if (jobId) {
+            // Start EventSource ASAP for real-time events
+            // processSSEEvent will handle duplicates gracefully
+            const esCompleted = await new Promise((resolve) => {
+                const es = new EventSource(`/api/resume/jobs/${jobId}/stream`);
+                let lastEventTime = Date.now();
+                const STALL_THRESHOLD = 5000; // ms with no event = likely done or stall
+                const MAX_WAIT = 300000; // 5 min absolute max
+                const maxTimeout = setTimeout(() => { es.close(); resolve(false); }, MAX_WAIT);
+                let stallCheck = setInterval(() => {
+                    if (Date.now() - lastEventTime > STALL_THRESHOLD && currentJobId === null) {
+                        // completed already via processSSEEvent
+                        clearInterval(stallCheck);
+                        clearTimeout(maxTimeout);
+                        es.close();
+                        resolve(true);
+                    }
+                }, 2000);
+
+                es.onmessage = (e) => {
+                    lastEventTime = Date.now();
+                    try {
+                        const event = JSON.parse(e.data);
+                        // React to all event types for real-time updates
+                        if (event.type === 'question') {
+                            // Skip if we already have this many from the stream
+                            const qKey = event.question?.title?.substring(0, 40) || '';
+                            // Check if we already processed this question via stream
+                            const alreadySeen = streamEvents.some(se =>
+                                se.type === 'question' && se.question?.title?.substring(0, 40) === qKey
+                            );
+                            if (!alreadySeen) {
+                                processSSEEvent(event, accumulatedQuestions, userHasScrolled, targetCount, scrollHandler);
+                            }
+                        } else if (event.type === 'complete' || event.type === 'error') {
+                            processSSEEvent(event, accumulatedQuestions, userHasScrolled, targetCount, scrollHandler);
+                            clearInterval(stallCheck);
+                            clearTimeout(maxTimeout);
+                            es.close();
+                            resolve(true);
+                        } else if (event.type === 'progress_update') {
+                            // Only update progress if we haven't received this update via stream
+                            const alreadySeen = streamEvents.some(se =>
+                                se.type === 'progress_update' && se.completed_count === event.completed_count
+                            );
+                            if (!alreadySeen) {
+                                processSSEEvent(event, accumulatedQuestions, userHasScrolled, targetCount, scrollHandler);
+                            }
+                        } else {
+                            // For job_started/stage events, process unconditionally
+                            // (processSSEEvent handles these idempotently)
+                            processSSEEvent(event, accumulatedQuestions, userHasScrolled, targetCount, scrollHandler);
+                        }
+                    } catch (err) {
+                        console.warn('Failed to parse EventSource event:', err);
+                    }
+                };
+
+                es.onerror = () => {
+                    clearInterval(stallCheck);
+                    clearTimeout(maxTimeout);
+                    es.close();
+                    resolve(false);
+                };
+            });
+
+            if (esCompleted) {
+                addDebugLogEntry('complete', '通过 EventSource 实时接收全部事件完成');
+            } else {
+                addDebugLogEntry('timeout', 'EventSource 超时或断开');
             }
+        } else {
+            // Fallback: couldn't get job_id, wait for stream
+            await streamPromise;
         }
     } catch (err) {
         window.removeEventListener('scroll', scrollHandler);
@@ -970,14 +1237,13 @@ function appendQuestionToPreview(question, index, userHasScrolled) {
 
 function showCompleteSummary(data) {
     const content = document.getElementById('result-content');
-    const savedCount = data.questions_saved || data.questions.length;
 
     // Prepend summary banner
     const summaryDiv = document.createElement('div');
     summaryDiv.className = 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/30 rounded-lg p-4 mb-4';
     summaryDiv.innerHTML = `
         <p class="text-green-700 dark:text-green-300">
-            ✅ 已生成 <strong>${savedCount}</strong> 道面试题，保存至题库:
+            ✅ 已生成 <strong>${data.questions_saved}</strong> 道面试题，保存至题库:
             <a href="/banks" class="underline hover:text-green-600 dark:hover:text-green-200">${escapeHtml(data.bank_name)}</a>
         </p>
     `;
@@ -1046,7 +1312,7 @@ function showResult(data) {
 
     let html = '<div class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/30 rounded-lg p-4 mb-4">';
     html += '<p class="text-green-700 dark:text-green-300">';
-    html += '已生成 <strong>' + (data.questions_saved || data.questions.length) + '</strong> 道面试题，';
+    html += '已生成 <strong>' + data.questions_saved + '</strong> 道面试题，';
     html += '保存至题库: <a href="/banks" class="underline hover:text-green-600 dark:hover:text-green-200">' + escapeHtml(data.bank_name) + '</a>';
     html += '</p></div>';
 

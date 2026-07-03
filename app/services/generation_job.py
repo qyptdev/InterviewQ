@@ -57,11 +57,6 @@ class GenerationJob:
     def push_event(self, event: dict) -> None:
         """Record event in past_events buffer and enqueue for live consumers."""
         self.past_events.append(event)
-        # Cap past_events to prevent unbounded memory growth
-        from app.config import get_settings
-        max_events = get_settings().job_max_past_events
-        if len(self.past_events) > max_events:
-            self.past_events = self.past_events[-max_events:]
         try:
             self.event_queue.put_nowait(event)
         except asyncio.QueueFull:

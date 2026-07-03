@@ -303,6 +303,8 @@ function toggleManageMode() {
         // Enter manage mode
         checkboxes.forEach(cb => cb.classList.remove('hidden'));
         btnText.textContent = '取消管理';
+        // Show toolbar immediately (even with 0 selected) for better UX
+        toolbar.classList.remove('hidden');
         // Initialize Shift-click handlers
         initializeShiftClickHandlers();
     } else {

@@ -7,6 +7,7 @@ import json
 import csv
 import io
 from datetime import datetime
+from urllib.parse import quote
 
 from app.models.schemas import (
     BankCreate,
@@ -153,46 +154,57 @@ async def get_bank_statistics(bank_id: int):
 @router.get("/{bank_id}/export")
 async def export_bank(bank_id: int, format: str = Query("json", pattern="^(json|csv)$")):
     """Export a question bank as JSON or CSV."""
-    bank = QuestionBankDAO.get_by_id(bank_id)
-    if not bank:
-        raise HTTPException(status_code=404, detail="题库未找到")
+    try:
+        bank = QuestionBankDAO.get_by_id(bank_id)
+        if not bank:
+            raise HTTPException(status_code=404, detail="题库未找到")
 
-    questions = QuestionBankDAO.get_questions(bank_id, limit=10000)
-    timestamp = datetime.now().strftime("%Y%m%d")
-    filename = f"{bank['name']}_{timestamp}"
+        questions = QuestionBankDAO.get_questions(bank_id, limit=10000)
+        timestamp = datetime.now().strftime("%Y%m%d")
+        filename = f"{bank['name']}_{timestamp}"
 
-    if format == "json":
-        # Export as JSON
-        data = {
-            "bank": {
-                "id": bank["id"],
-                "name": bank["name"],
-                "description": bank["description"],
-                "created_at": bank["created_at"],
+        if format == "json":
+            # Export as JSON
+            data = {
+                "bank": {
+                    "id": bank["id"],
+                    "name": bank["name"],
+                    "description": bank["description"] or "",
+                    "created_at": bank.get("created_at") or "",
+                },
+                "questions": questions,
+            }
+            content = json.dumps(data, ensure_ascii=False, indent=2, default=str)
+            media_type = "application/json"
+            filename += ".json"
+        else:
+            # Export as CSV
+            output = io.StringIO()
+            if questions:
+                fieldnames = ["id", "title", "category", "difficulty", "tags", "expected_answer"]
+                writer = csv.DictWriter(output, fieldnames=fieldnames)
+                writer.writeheader()
+                for q in questions:
+                    writer.writerow({k: q.get(k, "") for k in fieldnames})
+            content = output.getvalue()
+            media_type = "text/csv"
+            filename += ".csv"
+
+        # RFC 5987: encode filename for non-ASCII characters (latin-1 header limitation)
+        ascii_filename = quote(filename, safe="")
+        return StreamingResponse(
+            iter([content.encode("utf-8")]),
+            media_type=media_type,
+            headers={
+                "Content-Disposition": f"attachment; filename=\"{ascii_filename}\"; filename*=UTF-8''{ascii_filename}",
             },
-            "questions": questions,
-        }
-        content = json.dumps(data, ensure_ascii=False, indent=2)
-        media_type = "application/json"
-        filename += ".json"
-    else:
-        # Export as CSV
-        output = io.StringIO()
-        if questions:
-            fieldnames = ["id", "title", "category", "difficulty", "tags", "expected_answer"]
-            writer = csv.DictWriter(output, fieldnames=fieldnames)
-            writer.writeheader()
-            for q in questions:
-                writer.writerow({k: q.get(k, "") for k in fieldnames})
-        content = output.getvalue()
-        media_type = "text/csv"
-        filename += ".csv"
-
-    return StreamingResponse(
-        iter([content.encode("utf-8")]),
-        media_type=media_type,
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Export bank {bank_id} failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"导出失败: {str(e)}")
 
 
 @router.post("/{bank_id}/clone", response_model=BankResponse)
@@ -260,10 +272,14 @@ async def batch_export_banks(request: BankBatchExportRequest):
             media_type = "text/csv"
             filename = f"banks_export_{timestamp}.csv"
 
+        # RFC 5987: encode filename for non-ASCII characters
+        ascii_batch_filename = quote(filename, safe="")
         return StreamingResponse(
             iter([content.encode("utf-8")]),
             media_type=media_type,
-            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+            headers={
+                "Content-Disposition": f"attachment; filename=\"{ascii_batch_filename}\"; filename*=UTF-8''{ascii_batch_filename}",
+            },
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"批量导出失败: {str(e)}")

@@ -57,8 +57,15 @@ async def get_session(session_id: int):
 
 
 @router.post("/{session_id}/start")
-async def start_session(session_id: int, question_ids: list[int]):
-    """Start an interview session with selected questions."""
+async def start_session(session_id: int, question_ids: list[int] = None):
+    """Start an interview session with selected questions.
+
+    Accepts question_ids as either:
+    - JSON array: [1, 2, 3]
+    - JSON object: {"question_ids": [1, 2, 3]}
+    """
+    if question_ids is None:
+        question_ids = []
     try:
         result = InterviewEngine.start_session(session_id, question_ids)
         return result

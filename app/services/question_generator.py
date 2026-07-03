@@ -417,6 +417,13 @@ async def generate_questions_streaming(
             for q in batch.questions:
                 all_questions.append(q)
                 yield {"type": "question", "question": q}
+            # Real-time progress update after each valid batch
+            unique_so_far = deduplicate_questions(all_questions)
+            yield {
+                "type": "progress_update",
+                "completed_count": len(unique_so_far),
+                "total_planned": question_count,
+            }
         else:
             logger.warning(f"Resume batch {batch_idx + 1} validation failed: {validation.issues}")
             max_validation_retries = mode_config.get("max_validation_retries", 2)
@@ -434,6 +441,13 @@ async def generate_questions_streaming(
                     for q in batch.questions:
                         all_questions.append(q)
                         yield {"type": "question", "question": q}
+                    # Real-time progress update after each valid batch
+                    unique_so_far = deduplicate_questions(all_questions)
+                    yield {
+                        "type": "progress_update",
+                        "completed_count": len(unique_so_far),
+                        "total_planned": question_count,
+                    }
 
     # Dedup after Pass 1
     unique_so_far = deduplicate_questions(all_questions)
@@ -498,6 +512,16 @@ async def generate_questions_streaming(
             for q in round_new_questions:
                 all_questions.append(q)
                 yield {"type": "question", "question": q}
+            # Real-time progress update after supplement questions
+            unique_so_far = deduplicate_new_questions(
+                new_questions=round_new_questions,
+                existing_unique=unique_so_far,
+            )
+            yield {
+                "type": "progress_update",
+                "completed_count": len(unique_so_far),
+                "total_planned": question_count,
+            }
         else:
             logger.warning(
                 f"Streaming supplement round {supplement_round} validation failed: {validation.issues}"
@@ -519,18 +543,19 @@ async def generate_questions_streaming(
                     for q in round_new_questions:
                         all_questions.append(q)
                         yield {"type": "question", "question": q}
+                    # Real-time progress update after supplement questions
+                    if round_new_questions:
+                        unique_so_far = deduplicate_new_questions(
+                            new_questions=round_new_questions,
+                            existing_unique=unique_so_far,
+                        )
+                        yield {
+                            "type": "progress_update",
+                            "completed_count": len(unique_so_far),
+                            "total_planned": question_count,
+                        }
 
         # Incremental dedup: only check new questions vs existing unique set
-        if round_new_questions:
-            unique_so_far = deduplicate_new_questions(
-                new_questions=round_new_questions,
-                existing_unique=unique_so_far,
-            )
-        logger.info(
-            f"Streaming after supplement round {supplement_round}: "
-            f"{len(unique_so_far)} unique (target: {question_count})"
-        )
-
         if len(unique_so_far) >= question_count:
             break
 
@@ -755,16 +780,17 @@ async def run_generation_job(
         ):
             total_llm_calls += batch_result.llm_calls_used
             if batch_result.is_valid:
+                # Update unique count FIRST for accurate progress tracking
+                unique_so_far = deduplicate_new_questions(
+                    new_questions=batch_result.questions,
+                    existing_unique=unique_so_far,
+                )
                 for q in batch_result.questions:
                     all_questions.append(q)
                     job.questions.append(q)
                     job.completed_count = len(job.questions)
                     _emit({"type": "question", "question": q})
-                # Update unique count for progress (incremental dedup by batch)
-                unique_so_far = deduplicate_new_questions(
-                    new_questions=batch_result.questions,
-                    existing_unique=unique_so_far,
-                )
+                # Emit progress update after the batch is processed
                 _emit({
                     "type": "progress_update",
                     "completed_count": len(unique_so_far),
@@ -804,16 +830,17 @@ async def run_generation_job(
                     "message": f"正在补充通用题目（已有 {len(unique_so_far)} 题）...",
                 })
                 if batch_result.is_valid:
+                    # Update unique count FIRST for accurate progress tracking
+                    unique_so_far = deduplicate_new_questions(
+                        new_questions=batch_result.questions,
+                        existing_unique=unique_so_far,
+                    )
                     for q in batch_result.questions:
                         all_questions.append(q)
                         job.questions.append(q)
                         job.completed_count = len(job.questions)
                         _emit({"type": "question", "question": q})
-                    # Update unique_so_far for the loop condition
-                    unique_so_far = deduplicate_new_questions(
-                        new_questions=batch_result.questions,
-                        existing_unique=unique_so_far,
-                    )
+                    # Emit progress update after the batch is processed
                     _emit({
                         "type": "progress_update",
                         "completed_count": len(unique_so_far),
@@ -895,11 +922,14 @@ async def run_generation_job(
 async def stream_job_events(job: GenerationJob) -> AsyncGenerator[dict, None]:
     """Yield all past events and then stream new ones for a job.
 
-    Includes periodic SSE heartbeat events to keep the connection alive
-    during long LLM calls, preventing proxy/browser timeout.
-    """
-    import time
+    Used for reconnect: replays accumulated past_events first, then
+    yields from the event_queue until the job is finished.
 
+    After replaying past_events, the event_queue is drained to discard
+    any events that were already recorded in past_events (prevents
+    duplicate delivery on reconnect when the previous consumer
+    disconnected mid-stream).
+    """
     # Replay past events
     for event in job.past_events:
         yield event
@@ -908,18 +938,15 @@ async def stream_job_events(job: GenerationJob) -> AsyncGenerator[dict, None]:
     if job.status in ("completed", "terminated", "error"):
         return
 
-    # Drain stale items from the queue
+    # Drain stale items from the queue — these are duplicates of
+    # events we already replayed from past_events.
     while not job.event_queue.empty():
         try:
             job.event_queue.get_nowait()
         except asyncio.QueueEmpty:
             break
 
-    # Stream new events with heartbeat
-    from app.config import get_settings
-    heartbeat_interval = get_settings().sse_heartbeat_interval
-    last_event_time = time.monotonic()
-
+    # Stream only genuinely new events
     while True:
         try:
             event = await asyncio.wait_for(job.event_queue.get(), timeout=1.0)
@@ -927,14 +954,8 @@ async def stream_job_events(job: GenerationJob) -> AsyncGenerator[dict, None]:
             # Check if job finished while waiting
             if job.status in ("completed", "terminated", "error"):
                 break
-            # Emit heartbeat if enough time has passed
-            now = time.monotonic()
-            if now - last_event_time >= heartbeat_interval:
-                yield {"type": "heartbeat", "timestamp": time.time()}
-                last_event_time = now
             continue
         yield event
-        last_event_time = time.monotonic()
         # If we got a complete or error event, stop
         if event.get("type") in ("complete", "error"):
             break

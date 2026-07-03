@@ -3,6 +3,8 @@
 import logging
 from typing import Optional
 
+import jieba
+
 from app.core.state_models import QuestionBatch, ValidationResult
 
 logger = logging.getLogger(__name__)
@@ -140,7 +142,6 @@ def _simple_similarity(text1: str, text2: str) -> float:
     leading to artificially high similarity scores. Word-level tokenization
     provides semantically meaningful units for accurate deduplication.
     """
-    import jieba  # Lazy: only load jieba when actually needed (~80MB)
     if not text1 or not text2:
         return 0.0
 
